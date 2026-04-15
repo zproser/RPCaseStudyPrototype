@@ -22,7 +22,16 @@ function endSectionTransition(scrollEl, generation, onDone) {
 }
 
 if (sectionsToReveal.length > 0) {
-  sectionsToReveal[0].classList.add("is-visible");
+  const first = sectionsToReveal[0];
+  if (first.classList.contains("hero")) {
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        first.classList.add("is-visible");
+      });
+    });
+  } else {
+    first.classList.add("is-visible");
+  }
 }
 
 function setupObjectiveLines() {
@@ -30,28 +39,37 @@ function setupObjectiveLines() {
   const h2 = section && section.querySelector("h2");
   if (!section || !h2) return;
 
-  const h2Top = h2.offsetTop;
-  const h2Bottom = h2.offsetTop + h2.offsetHeight;
+  /* offsetTop is relative to offsetParent; h2 is inside .objective-head-main, so use section bounds */
+  const s = section.getBoundingClientRect();
+  const h = h2.getBoundingClientRect();
+  const h2Top = h.top - s.top;
+  const h2Bottom = h.bottom - s.top;
 
   const topSeg = document.createElement("div");
   topSeg.className = "line-segment";
   topSeg.style.top = "0";
-  topSeg.style.height = h2Top + "px";
+  topSeg.style.height = `${Math.max(0, h2Top)}px`;
 
   const bottomSeg = document.createElement("div");
   bottomSeg.className = "line-segment";
-  bottomSeg.style.top = h2Bottom + "px";
+  bottomSeg.style.top = `${h2Bottom}px`;
   bottomSeg.style.bottom = "0";
 
   section.appendChild(topSeg);
   section.appendChild(bottomSeg);
 }
 
-setupObjectiveLines();
-window.addEventListener("resize", () => {
+function refreshObjectiveLines() {
   document.querySelectorAll("#objective .line-segment").forEach((el) => el.remove());
   setupObjectiveLines();
-});
+}
+
+setupObjectiveLines();
+window.addEventListener("resize", refreshObjectiveLines);
+window.addEventListener("load", refreshObjectiveLines);
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(refreshObjectiveLines);
+}
 
 const revealObserver = new IntersectionObserver(
   (entries) => {
@@ -69,12 +87,27 @@ sectionsToReveal.forEach((section) => revealObserver.observe(section));
 
 const navLinks = document.querySelectorAll('a[href^="#"]');
 
+function syncNavThemeToSectionIndex(index) {
+  if (sections.length === 0) return;
+  const idx = Math.max(0, Math.min(sections.length - 1, index));
+  document.body.classList.toggle("nav-on-light", sections[idx].classList.contains("block-light"));
+}
+
+function updateNavThemeFromScroll() {
+  if (!mainScrollContainer || sections.length === 0) return;
+  const h = mainScrollContainer.clientHeight;
+  if (h <= 0) return;
+  const idx = Math.min(sections.length - 1, Math.max(0, Math.round(mainScrollContainer.scrollTop / h)));
+  document.body.classList.toggle("nav-on-light", sections[idx].classList.contains("block-light"));
+}
+
 function jumpToSection(index) {
   if (!mainScrollContainer || sections.length === 0) {
     return;
   }
   const boundedIndex = Math.max(0, Math.min(sections.length - 1, index));
   activeSectionIndex = boundedIndex;
+  syncNavThemeToSectionIndex(boundedIndex);
   isTransitioning = true;
   const generation = ++scrollTransitionGeneration;
   const useSmooth = !reducedMotion.matches;
@@ -106,6 +139,8 @@ function setMenuState(open) {
 }
 
 if (mainScrollContainer && sections.length > 0) {
+  mainScrollContainer.addEventListener("scroll", updateNavThemeFromScroll, { passive: true });
+
   mainScrollContainer.addEventListener(
     "wheel",
     (event) => {
@@ -150,6 +185,8 @@ if (mainScrollContainer && sections.length > 0) {
       jumpToSection(activeSectionIndex - 1);
     }
   });
+
+  updateNavThemeFromScroll();
 }
 
 if (menuButton) {
