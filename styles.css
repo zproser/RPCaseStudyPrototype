@@ -61,6 +61,16 @@ body.menu-open {
   top: 28px;
   left: 140px;
   z-index: 20;
+  transition: filter 220ms ease;
+}
+
+/* Light page sections (.block-light): dark nav chrome */
+body.nav-on-light:not(.menu-open) .brand-logo {
+  filter: brightness(0);
+}
+
+body.menu-open .brand-logo {
+  filter: none;
 }
 
 .hamburger-btn {
@@ -81,6 +91,15 @@ body.menu-open {
   width: 16px;
   height: 1.5px;
   border-radius: 999px;
+  background: #f2edf9;
+  transition: background-color 220ms ease;
+}
+
+body.nav-on-light:not(.menu-open) .hamburger-btn span {
+  background: #14141a;
+}
+
+body.menu-open .hamburger-btn span {
   background: #f2edf9;
 }
 
@@ -170,14 +189,17 @@ body.menu-open .menu-overlay {
   position: relative;
   width: 100vw;
   height: 100vh;
+  overflow-x: hidden;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 108px max(4vw, calc((100vw - 1180px) / 2)) 40px;
+  padding: 108px 140px 40px;
+  isolation: isolate;
 }
 
-.section > * {
+/* .hero-copy is position:absolute — do not force relative here or top/bottom won't bind to the hero */
+.section > *:not(.line-segment):not(.hero-copy) {
   position: relative;
   z-index: 2;
 }
@@ -213,6 +235,7 @@ body.menu-open .menu-overlay {
   }
 }
 
+/* .hero / .hero-home — “Hero Home” slide: image + .hero-copy (/ Client Name, H1, lede) */
 .hero {
   position: relative;
   display: block;
@@ -223,43 +246,82 @@ body.menu-open .menu-overlay {
   background-repeat: no-repeat;
 }
 
-.hero-copy {
+/*
+  Hero Home: use flex + padding-bottom so “200px from viewport bottom” is real.
+  (.hero { display: block } was overriding .section flex; absolute bottom was easy to fight / cache.)
+*/
+section#hero-home.hero {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: flex-start;
+  box-sizing: border-box;
+  width: 100vw;
+  min-height: 100vh;
+  height: 100vh;
+  padding-top: 108px;
+  /* Aim ~200px viewport gap; 176px here reads ~200px if ~24px comes from type metrics / flex rounding */
+  padding-bottom: 176px;
+  padding-left: 140px;
+  padding-right: 140px;
+}
+
+#hero-home .hero-copy {
+  position: relative;
+  z-index: 2;
   max-width: 720px;
-  position: absolute;
-  left: 140px;
-  bottom: 120px;
-  z-index: 1;
+  width: 100%;
+  margin: 0;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: visible;
+  box-sizing: border-box;
+}
+
+#hero-home .hero-copy > *:last-child {
+  margin-bottom: 0;
+}
+
+/* Hero shows the image immediately; only .fade-in inner copy animates (not the whole section) */
+.hero.fade-in {
+  opacity: 1;
+  transform: none;
+  transition: none;
+  will-change: auto;
 }
 
 .hero-copy .hero-meta,
 .hero-copy h1,
 .hero-copy .lede {
   opacity: 0;
-  transform: translateY(28px);
+  transform: translateY(32px);
+  filter: blur(10px);
   transition:
-    opacity 1400ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
+    opacity 1150ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 1150ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 900ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero.is-visible .hero-meta {
   opacity: 1;
   transform: none;
-  transition-delay: 100ms;
+  filter: blur(0);
+  transition-delay: 80ms;
 }
 
 .hero.is-visible h1 {
   opacity: 1;
   transform: none;
-  transition-delay: 400ms;
+  filter: blur(0);
+  transition-delay: 280ms;
 }
 
 .hero.is-visible .lede {
   opacity: 1;
   transform: none;
-  transition-delay: 700ms;
+  filter: blur(0);
+  transition-delay: 480ms;
 }
 
 .hero-meta {
@@ -277,10 +339,6 @@ body.menu-open .menu-overlay {
 
 .hero .hero-eyebrow {
   margin: 0;
-}
-
-.hero h1 {
-  font-size: clamp(2.7rem, 7.4vw, 6.2rem);
 }
 
 .hero .lede {
@@ -304,8 +362,15 @@ h2 {
   margin: 0;
   line-height: 1.04;
   letter-spacing: -0.02em;
-  font-size: clamp(2.4rem, 7vw, 5rem);
   max-width: 900px;
+}
+
+/* H1 (page title) and H2 (section titles): 80px on desktop */
+@media (min-width: 901px) {
+  h1,
+  h2 {
+    font-size: 80px;
+  }
 }
 
 .lede,
@@ -335,8 +400,12 @@ h2 {
 
 .block-light {
   background-color: #f1f1f3;
-  background-image: radial-gradient(rgba(30, 30, 35, 0.18) 1px, transparent 1px);
+  /* Explicit circle + shared origin so overlay dots line up with base grid */
+  background-image: radial-gradient(circle, rgba(30, 30, 35, 0.18) 1px, transparent 1px);
   background-size: 14px 14px;
+  background-repeat: repeat;
+  background-position: 0 0;
+  background-origin: border-box;
   border: 1px solid #e5e5ea;
 }
 
@@ -344,12 +413,15 @@ h2 {
 .block-light::before {
   content: "";
   position: absolute;
-  inset: 0;
+  /* Match border-box so the 14px grid aligns with the base layer (inset:0 sits in padding box and shifts the pattern) */
+  inset: -1px;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(rgba(30, 30, 35, 0.26) 1.45px, transparent 1.45px);
+  background-image: radial-gradient(circle, rgba(30, 30, 35, 0.26) 1.45px, transparent 1.45px);
   background-size: 14px 14px;
+  background-repeat: repeat;
   background-position: 0 0;
+  background-origin: border-box;
   /* Feathered edge (not a hard clip-path circle) */
   -webkit-mask-image: radial-gradient(
     circle 128px at var(--dot-mx, 50%) var(--dot-my, 50%),
@@ -376,6 +448,64 @@ h2 {
 
 #objective h2 {
   color: #111114;
+}
+
+/* Full-bleed row: cancel section horizontal padding, then pad right 140px from viewport edge */
+#objective .objective-head-main {
+  --objective-gutter: 140px;
+  width: 100vw;
+  margin-left: calc(-1 * var(--objective-gutter));
+  margin-right: calc(-1 * var(--objective-gutter));
+  padding-left: var(--objective-gutter);
+  padding-right: 140px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: minmax(0, min(800px, 100%)) 1fr;
+  column-gap: min(4vw, 40px);
+  align-items: start;
+}
+
+/* Left column: H2 + body with fixed gap from headline (not from image column height). */
+#objective .objective-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 180px;
+  min-width: 0;
+}
+
+#objective .objective-head-text h2 {
+  margin: 0;
+  max-width: min(800px, 100%);
+}
+
+#objective .objective-overview-media {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 20px;
+  justify-self: end;
+  min-width: 0;
+  transform: scale(var(--overview-img-scale, 0.5));
+  transform-origin: right center;
+  will-change: transform;
+}
+
+#objective .objective-overview-thumb {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  max-width: min(36vw, 260px);
+  display: block;
+  pointer-events: none;
+}
+
+#objective .objective-overview-large {
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+  max-width: min(38.4vw, 448px);
+  display: block;
+  pointer-events: none;
 }
 
 #objective::after {
@@ -410,6 +540,12 @@ h2 {
     transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
+/* Overview images: visible at 50% size; scale 50%→100% driven by scroll (--overview-img-scale) */
+#objective .objective-overview-thumb,
+#objective .objective-overview-large {
+  opacity: 1;
+}
+
 #objective.is-visible .eyebrow {
   opacity: 1;
   transform: none;
@@ -429,7 +565,7 @@ h2 {
 }
 
 #objective .objective-body {
-  margin-top: 240px;
+  margin-top: 0;
   max-width: 364px;
 }
 
@@ -500,6 +636,9 @@ h2 {
 .media-column {
   display: grid;
   gap: 14px;
+  transform: scale(var(--overview-img-scale, 0.5));
+  transform-origin: right center;
+  will-change: transform;
 }
 
 .media-card {
@@ -515,6 +654,10 @@ h2 {
 
 .media-card.large {
   height: 360px;
+}
+
+#overview .media-card {
+  opacity: 1;
 }
 
 .slider-shell {
@@ -570,18 +713,15 @@ h2 {
     linear-gradient(140deg, #2d174c, #09090f);
 }
 
+/* Opacity only — translateY on full-viewport sections caused overlap with neighbors while scrolling */
 .fade-in {
   opacity: 0;
-  transform: translateY(24px);
-  transition:
-    opacity 900ms cubic-bezier(0.22, 1, 0.36, 1),
-    transform 900ms cubic-bezier(0.22, 1, 0.36, 1);
-  will-change: opacity, transform;
+  transition: opacity 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity;
 }
 
 .fade-in.is-visible {
   opacity: 1;
-  transform: translateY(0);
 }
 
 main {
@@ -603,7 +743,21 @@ main::-webkit-scrollbar {
 @media (prefers-reduced-motion: reduce) {
   .fade-in {
     opacity: 1;
+    transition: none;
+  }
+
+  #objective .objective-overview-media,
+  #overview .media-column {
     transform: none;
+    will-change: auto;
+  }
+
+  .hero-copy .hero-meta,
+  .hero-copy h1,
+  .hero-copy .lede {
+    opacity: 1;
+    transform: none;
+    filter: none;
     transition: none;
   }
 
@@ -628,18 +782,55 @@ main::-webkit-scrollbar {
     padding: 96px 24px 28px;
   }
 
-  .hero-copy {
-    position: static;
-    max-width: 100%;
+  section#hero-home.hero {
+    height: auto;
+    min-height: 100vh;
+    padding: 96px 24px 48px;
+    justify-content: flex-end;
   }
 
-  .hero h1 {
+  #hero-home .hero-copy {
+    position: relative;
+    left: auto;
+    top: auto;
+    bottom: auto;
+    max-width: 100%;
+    width: 100%;
+    overflow: visible;
+  }
+
+  h1,
+  h2 {
     font-size: clamp(2.2rem, 11vw, 4rem);
   }
 
   .section {
     min-height: 100vh;
     padding: 96px 24px 28px;
+  }
+
+  #objective .objective-head-main {
+    width: 100%;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    grid-template-columns: 1fr;
+    row-gap: 20px;
+  }
+
+  #objective .objective-overview-media {
+    align-items: flex-start;
+    justify-self: start;
+    width: 100%;
+  }
+
+  #objective .objective-overview-thumb {
+    max-width: min(85vw, 320px);
+  }
+
+  #objective .objective-overview-large {
+    max-width: min(73.6vw, 448px);
   }
 
   .row,
