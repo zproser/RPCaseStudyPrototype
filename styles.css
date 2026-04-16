@@ -341,10 +341,6 @@ section#hero-home.hero {
   margin: 0;
 }
 
-.hero h1 {
-  font-size: clamp(2.7rem, 7.4vw, 6.2rem);
-}
-
 .hero .lede {
   margin-top: 0;
   color: #aea7c2;
@@ -366,8 +362,15 @@ h2 {
   margin: 0;
   line-height: 1.04;
   letter-spacing: -0.02em;
-  font-size: clamp(2.4rem, 7vw, 5rem);
   max-width: 900px;
+}
+
+/* H1 (page title) and H2 (section titles): 80px on desktop */
+@media (min-width: 901px) {
+  h1,
+  h2 {
+    font-size: 80px;
+  }
 }
 
 .lede,
@@ -456,16 +459,23 @@ h2 {
   padding-left: var(--objective-gutter);
   padding-right: 140px;
   box-sizing: border-box;
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: min(4vw, 40px);
+  display: grid;
+  grid-template-columns: minmax(0, min(800px, 100%)) 1fr;
+  column-gap: min(4vw, 40px);
+  align-items: start;
 }
 
-#objective .objective-head-main h2 {
-  flex: 1;
+/* Left column: H2 + body with fixed gap from headline (not from image column height). */
+#objective .objective-head-text {
+  display: flex;
+  flex-direction: column;
+  gap: 180px;
   min-width: 0;
-  max-width: min(900px, 100%);
+}
+
+#objective .objective-head-text h2 {
+  margin: 0;
+  max-width: min(800px, 100%);
 }
 
 #objective .objective-overview-media {
@@ -473,7 +483,11 @@ h2 {
   flex-direction: column;
   align-items: flex-end;
   gap: 20px;
-  flex: 0 0 auto;
+  justify-self: end;
+  min-width: 0;
+  transform: scale(var(--overview-img-scale, 0.5));
+  transform-origin: right center;
+  will-change: transform;
 }
 
 #objective .objective-overview-thumb {
@@ -489,7 +503,7 @@ h2 {
   flex: 0 0 auto;
   width: auto;
   height: auto;
-  max-width: min(48vw, 560px);
+  max-width: min(38.4vw, 448px);
   display: block;
   pointer-events: none;
 }
@@ -518,14 +532,18 @@ h2 {
 
 #objective .eyebrow,
 #objective h2,
-#objective .body-dark,
-#objective .objective-overview-thumb,
-#objective .objective-overview-large {
+#objective .body-dark {
   opacity: 0;
   transform: translateY(28px);
   transition:
     opacity 1400ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Overview images: visible at 50% size; scale 50%→100% driven by scroll (--overview-img-scale) */
+#objective .objective-overview-thumb,
+#objective .objective-overview-large {
+  opacity: 1;
 }
 
 #objective.is-visible .eyebrow {
@@ -540,18 +558,6 @@ h2 {
   transition-delay: 400ms;
 }
 
-#objective.is-visible .objective-overview-thumb {
-  opacity: 1;
-  transform: none;
-  transition-delay: 400ms;
-}
-
-#objective.is-visible .objective-overview-large {
-  opacity: 1;
-  transform: none;
-  transition-delay: 520ms;
-}
-
 #objective.is-visible .body-dark {
   opacity: 1;
   transform: none;
@@ -559,7 +565,7 @@ h2 {
 }
 
 #objective .objective-body {
-  margin-top: 240px;
+  margin-top: 0;
   max-width: 364px;
 }
 
@@ -630,6 +636,9 @@ h2 {
 .media-column {
   display: grid;
   gap: 14px;
+  transform: scale(var(--overview-img-scale, 0.5));
+  transform-origin: right center;
+  will-change: transform;
 }
 
 .media-card {
@@ -645,6 +654,10 @@ h2 {
 
 .media-card.large {
   height: 360px;
+}
+
+#overview .media-card {
+  opacity: 1;
 }
 
 .slider-shell {
@@ -733,6 +746,12 @@ main::-webkit-scrollbar {
     transition: none;
   }
 
+  #objective .objective-overview-media,
+  #overview .media-column {
+    transform: none;
+    will-change: auto;
+  }
+
   .hero-copy .hero-meta,
   .hero-copy h1,
   .hero-copy .lede {
@@ -780,7 +799,8 @@ main::-webkit-scrollbar {
     overflow: visible;
   }
 
-  .hero h1 {
+  h1,
+  h2 {
     font-size: clamp(2.2rem, 11vw, 4rem);
   }
 
@@ -795,13 +815,13 @@ main::-webkit-scrollbar {
     margin-right: 0;
     padding-left: 0;
     padding-right: 0;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 20px;
+    grid-template-columns: 1fr;
+    row-gap: 20px;
   }
 
   #objective .objective-overview-media {
     align-items: flex-start;
+    justify-self: start;
     width: 100%;
   }
 
@@ -810,7 +830,7 @@ main::-webkit-scrollbar {
   }
 
   #objective .objective-overview-large {
-    max-width: min(92vw, 560px);
+    max-width: min(73.6vw, 448px);
   }
 
   .row,

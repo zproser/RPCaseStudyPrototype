@@ -6,6 +6,47 @@ const menuOverlay = document.querySelector(".menu-overlay");
 const menuOverlayLinks = document.querySelectorAll(".menu-links a");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let activeSectionIndex = 0;
+
+/**
+ * Map scroll position → --overview-img-scale (0.5 → 1), linearly.
+ * Inner section scroll + main scroll fallback; see section scroll listeners on `sections`.
+ */
+function updateOverviewImageScrollScale() {
+  if (!mainScrollContainer) return;
+  const mediaEls = document.querySelectorAll(
+    "#objective .objective-overview-media, #overview .media-column"
+  );
+  if (reducedMotion.matches) {
+    mediaEls.forEach((el) => el.style.removeProperty("--overview-img-scale"));
+    return;
+  }
+  const vh = mainScrollContainer.clientHeight;
+  if (vh <= 0) return;
+
+  const pairs = [
+    ["#objective", "#objective .objective-overview-media"],
+    ["#overview", "#overview .media-column"],
+  ];
+
+  for (const [sectionSel, targetSel] of pairs) {
+    const section = document.querySelector(sectionSel);
+    const target = document.querySelector(targetSel);
+    if (!section || !target) continue;
+
+    const rect = section.getBoundingClientRect();
+    const maxInner = Math.max(0, section.scrollHeight - section.clientHeight);
+    let raw;
+    if (maxInner > 2) {
+      raw = Math.min(1, Math.max(0, section.scrollTop / maxInner));
+    } else {
+      raw = Math.min(1, Math.max(0, -rect.top / vh));
+    }
+    /* Linear: first pixel of scroll moves scale (no flat “dead” zone); change stays slow and even. */
+    const t = Math.min(1, Math.max(0, raw));
+    const scale = 0.5 + 0.5 * t;
+    target.style.setProperty("--overview-img-scale", scale.toFixed(4));
+  }
+}
 let isTransitioning = false;
 let isMenuOpen = false;
 let scrollTransitionGeneration = 0;
@@ -139,7 +180,22 @@ function setMenuState(open) {
 }
 
 if (mainScrollContainer && sections.length > 0) {
-  mainScrollContainer.addEventListener("scroll", updateNavThemeFromScroll, { passive: true });
+  mainScrollContainer.addEventListener(
+    "scroll",
+    () => {
+      updateNavThemeFromScroll();
+      window.requestAnimationFrame(updateOverviewImageScrollScale);
+    },
+    { passive: true }
+  );
+
+  sections.forEach((section) => {
+    section.addEventListener(
+      "scroll",
+      () => window.requestAnimationFrame(updateOverviewImageScrollScale),
+      { passive: true }
+    );
+  });
 
   mainScrollContainer.addEventListener(
     "wheel",
@@ -187,7 +243,12 @@ if (mainScrollContainer && sections.length > 0) {
   });
 
   updateNavThemeFromScroll();
+  updateOverviewImageScrollScale();
 }
+
+window.addEventListener("resize", updateOverviewImageScrollScale);
+reducedMotion.addEventListener("change", updateOverviewImageScrollScale);
+updateOverviewImageScrollScale();
 
 if (menuButton) {
   menuButton.addEventListener("click", () => {
