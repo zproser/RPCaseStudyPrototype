@@ -15,18 +15,20 @@
   <body>
     <div class="ambient"></div>
     <header class="site-header">
-      <img class="brand-logo" src="Assets/RPRobot.svg" alt="RP Robot logo" />
-      <button
-        class="hamburger-btn"
-        type="button"
-        aria-label="Open menu"
-        aria-expanded="false"
-        aria-controls="menuOverlay"
-      >
-        <span></span>
-        <span></span>
-        <span></span>
-      </button>
+      <div class="site-header__inner">
+        <img class="brand-logo" src="Assets/RPRobot.svg" alt="RP Robot logo" />
+        <button
+          class="hamburger-btn"
+          type="button"
+          aria-label="Open menu"
+          aria-expanded="false"
+          aria-controls="menuOverlay"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
+      </div>
     </header>
     <div id="menuOverlay" class="menu-overlay" aria-hidden="true">
       <div class="menu-top">
@@ -61,7 +63,7 @@
         </div>
       </section>
 
-      <section id="objective" class="section block block-light fade-in">
+      <section id="project-overview" class="section block block-light fade-in">
         <p class="eyebrow eyebrow-dark">/ Overview</p>
         <div class="objective-head-main">
           <div class="objective-head-text">
@@ -80,46 +82,123 @@
               src="Assets/overviewimage_small.png"
               alt=""
             />
-            <img
-              class="objective-overview-large"
-              src="Assets/overviewimage_large.png"
-              alt=""
-            />
           </div>
         </div>
       </section>
 
-      <section id="overview" class="section block block-light fade-in">
-        <div class="overview-grid">
-          <div>
-            <p class="eyebrow eyebrow-dark">/ Overview</p>
-            <h2 class="dark">Lorem ipsum dolor sit amet, consectetur adipiscing elit.</h2>
-            <p class="body-dark">
-              Secondary copy block for overview context and narrative setup.
-            </p>
-          </div>
-          <div class="media-column">
-            <div class="media-card small"></div>
-            <div class="media-card large"></div>
+      <!-- Bounds sticky video: it stops once this stack (video + objective) has scrolled away -->
+      <div class="video-objective-stack">
+        <section
+          id="video-break"
+          class="section section-videobreak block-dark"
+          data-section-name="Video Break"
+        >
+          <img
+            class="videobreak-image"
+            src="Assets/videobreak.png"
+            alt=""
+          />
+        </section>
+
+        <section id="objective" class="section block block-dark section-objective-post-video section-over-videobreak fade-in">
+        <div class="objective-content">
+          <p class="eyebrow objective-eyebrow">/ Objective</p>
+          <h2 class="objective-headline">
+            <span class="objective-headline-line">Lorem ipsum dolor sit amet,</span>
+            <span class="objective-headline-line">consectetur adipiscing elit.</span>
+          </h2>
+          <div class="objective-rows" aria-label="Objective details">
+            <div class="objective-row">
+              <span class="objective-row-label">/ 001</span>
+              <p class="objective-row-text">
+                Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et
+                dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation.
+              </p>
+            </div>
+            <div class="objective-row">
+              <span class="objective-row-label">/ 002</span>
+              <p class="objective-row-text">
+                Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
+                Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est
+                laborum.
+              </p>
+            </div>
+            <div class="objective-row">
+              <span class="objective-row-label">/ 003</span>
+              <p class="objective-row-text">
+                Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam
+                rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt
+                explicabo.
+              </p>
+            </div>
+            <div class="objective-row">
+              <span class="objective-row-label">/ 004</span>
+              <p class="objective-row-text">
+                Nemo enim ipsam voluptatem quia voluptas sit aspernatur aut odit aut fugit, sed quia consequuntur magni
+                dolores eos qui ratione voluptatem sequi nesciunt.
+              </p>
+            </div>
           </div>
         </div>
-      </section>
+        </section>
+      </div>
 
       <section id="solution" class="section block block-dark fade-in">
         <p class="eyebrow">/ Solution</p>
-        <h2>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</h2>
+        <h2 class="solution-headline">
+          <span class="solution-headline-line">Lorem ipsum dolor sit amet,</span>
+          <span class="solution-headline-line">consectetur adipiscing elit.</span>
+        </h2>
         <p class="body">
-          This area is intentionally generic and style-focused. Add your final
-          components later.
+          Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore .Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore.
         </p>
         <div class="slider-shell">
-          <div class="slide-card"></div>
-          <div class="slide-card ghost"></div>
+          <div class="slider-shell__viewport" id="solutionSliderViewport">
+            <div class="slider-shell__track" id="solutionSliderTrack">
+              <div class="solution-slide">
+                <div class="slide-card slide-card--split">
+                  <div class="slide-card__visual">
+                    <img
+                      class="slide-card__media"
+                      src="Assets/SolutionImage_phone.png"
+                      alt=""
+                    />
+                  </div>
+                  <div class="slide-card__copy">
+                    <h3>Geo based login</h3>
+                    <p class="slide-card__body">
+                      Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore .Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut l abore et dolore ..
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="solution-slide" aria-hidden="true">
+                <div class="slide-card ghost"></div>
+              </div>
+            </div>
+          </div>
+          <div class="slider-shell__nav">
+            <div class="slide-card__arrows" role="group" aria-label="Slide navigation">
+              <img
+                class="slide-card__arrows-art"
+                src="Assets/Sliderarrows.svg"
+                width="53"
+                height="24"
+                alt=""
+              />
+              <button
+                type="button"
+                class="slide-card__arrow-hit slide-card__arrow-hit--prev"
+                aria-label="Previous slide"
+              ></button>
+              <button
+                type="button"
+                class="slide-card__arrow-hit slide-card__arrow-hit--next"
+                aria-label="Next slide"
+              ></button>
+            </div>
+          </div>
         </div>
-      </section>
-
-      <section class="section video-break fade-in">
-        <div class="video-dot"></div>
       </section>
 
       <section id="impact" class="section block block-dark block-impact fade-in">

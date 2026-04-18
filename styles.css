@@ -20,6 +20,7 @@ body {
   font-family: "Montserrat", sans-serif;
   background: var(--black);
   color: var(--ink);
+  overscroll-behavior: none;
 }
 
 body {
@@ -46,26 +47,80 @@ body.menu-open {
   margin-inline: auto;
 }
 
+/* Logo SVG is 29×48 intrinsic; --logo-h keeps it unscaled. */
 .site-header {
+  --logo-h: 48px;
+  --site-header-pad-y: 12px;
+  --site-header-pad-x: 24px;
+  --site-header-h: calc(var(--logo-h) + 2 * var(--site-header-pad-y));
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 20;
   pointer-events: none;
+  box-sizing: border-box;
+  height: var(--site-header-h);
+  min-height: var(--site-header-h);
+  padding: var(--site-header-pad-y) var(--site-header-pad-x);
+  display: flex;
+  align-items: center;
+}
+
+.site-header__inner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  pointer-events: none;
+}
+
+.site-header::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--site-header-h);
+  background: #ffffff;
+  z-index: 19;
+  opacity: 0;
+  transition: opacity 220ms ease;
+  pointer-events: none;
+}
+
+body.nav-scroll-up-bar:not(.menu-open) .site-header::after {
+  opacity: 1;
+}
+
+body.nav-scroll-down:not(.menu-open) .site-header::after {
+  opacity: 0;
 }
 
 .brand-logo {
   display: block;
-  position: fixed;
-  top: 28px;
-  left: 140px;
+  position: relative;
   z-index: 20;
-  transition: filter 220ms ease;
+  flex-shrink: 0;
+  height: var(--logo-h);
+  width: auto;
+  pointer-events: auto;
+  transition:
+    filter 220ms ease,
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.26s ease;
 }
 
-/* Light page sections (.block-light): dark nav chrome */
-body.nav-on-light:not(.menu-open) .brand-logo {
+body.nav-scroll-down:not(.menu-open) .brand-logo {
+  transform: translateY(-140%);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Light page sections (.block-light) or solid bar on scroll-up: dark nav chrome */
+body.nav-on-light:not(.menu-open) .brand-logo,
+body.nav-scroll-up-bar:not(.menu-open) .brand-logo {
   filter: brightness(0);
 }
 
@@ -78,24 +133,36 @@ body.menu-open .brand-logo {
   background: transparent;
   display: grid;
   place-content: center;
-  gap: 4px;
+  gap: 7px;
   padding: 0;
+  margin: 0;
   cursor: pointer;
-  position: fixed;
-  top: 28px;
-  right: 140px;
+  position: relative;
   z-index: 20;
+  flex-shrink: 0;
+  align-self: center;
+  pointer-events: auto;
+  transition:
+    transform 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.26s ease;
+}
+
+body.nav-scroll-down:not(.menu-open) .hamburger-btn {
+  transform: translateY(-140%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .hamburger-btn span {
-  width: 16px;
-  height: 1.5px;
+  width: 28px;
+  height: 2.625px;
   border-radius: 999px;
   background: #f2edf9;
   transition: background-color 220ms ease;
 }
 
-body.nav-on-light:not(.menu-open) .hamburger-btn span {
+body.nav-on-light:not(.menu-open) .hamburger-btn span,
+body.nav-scroll-up-bar:not(.menu-open) .hamburger-btn span {
   background: #14141a;
 }
 
@@ -104,7 +171,7 @@ body.menu-open .hamburger-btn span {
 }
 
 body.menu-open .hamburger-btn span:nth-child(1) {
-  transform: translateY(5.5px) rotate(45deg);
+  transform: translateY(9.625px) rotate(45deg);
 }
 
 body.menu-open .hamburger-btn span:nth-child(2) {
@@ -112,7 +179,7 @@ body.menu-open .hamburger-btn span:nth-child(2) {
 }
 
 body.menu-open .hamburger-btn span:nth-child(3) {
-  transform: translateY(-5.5px) rotate(-45deg);
+  transform: translateY(-9.625px) rotate(-45deg);
 }
 
 .hamburger-btn span {
@@ -185,9 +252,17 @@ body.menu-open .menu-overlay {
   pointer-events: auto;
 }
 
+/*
+ * Use width:100% (not 100vw) so section boxes match `main`’s width. `100vw` is
+ * the full viewport width including the scrollbar gutter; `main` is slightly
+ * narrower when a vertical scrollbar exists, so 100vw sections overflow
+ * horizontally and main { overflow-x: hidden } clips the right edge (carousel
+ * “cut off”, etc.).
+ */
 .section {
   position: relative;
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   height: 100vh;
   overflow-x: hidden;
   overflow-y: auto;
@@ -256,7 +331,8 @@ section#hero-home.hero {
   justify-content: flex-end;
   align-items: flex-start;
   box-sizing: border-box;
-  width: 100vw;
+  width: 100%;
+  max-width: 100%;
   min-height: 100vh;
   height: 100vh;
   padding-top: 108px;
@@ -300,7 +376,7 @@ section#hero-home.hero {
   transition:
     opacity 1150ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 1150ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 900ms cubic-bezier(0.22, 1, 0.36, 1);
+    filter 1150ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
 .hero.is-visible .hero-meta {
@@ -365,6 +441,14 @@ h2 {
   max-width: 900px;
 }
 
+h3 {
+  margin: 0;
+  font-size: 32px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 600;
+}
+
 /* H1 (page title) and H2 (section titles): 80px on desktop */
 @media (min-width: 901px) {
   h1,
@@ -417,7 +501,7 @@ h2 {
   inset: -1px;
   z-index: 0;
   pointer-events: none;
-  background-image: radial-gradient(circle, rgba(30, 30, 35, 0.26) 1.45px, transparent 1.45px);
+  background-image: radial-gradient(circle, #000000 1.45px, transparent 1.45px);
   background-size: 14px 14px;
   background-repeat: repeat;
   background-position: 0 0;
@@ -441,19 +525,19 @@ h2 {
   mask-repeat: no-repeat;
 }
 
-#objective {
+#project-overview {
   justify-content: flex-start;
   padding-top: 140px;
 }
 
-#objective h2 {
+#project-overview h2 {
   color: #111114;
 }
 
 /* Full-bleed row: cancel section horizontal padding, then pad right 140px from viewport edge */
-#objective .objective-head-main {
+#project-overview .objective-head-main {
   --objective-gutter: 140px;
-  width: 100vw;
+  width: calc(100% + 2 * var(--objective-gutter));
   margin-left: calc(-1 * var(--objective-gutter));
   margin-right: calc(-1 * var(--objective-gutter));
   padding-left: var(--objective-gutter);
@@ -463,55 +547,51 @@ h2 {
   grid-template-columns: minmax(0, min(800px, 100%)) 1fr;
   column-gap: min(4vw, 40px);
   align-items: start;
+  overflow: visible;
 }
 
 /* Left column: H2 + body with fixed gap from headline (not from image column height). */
-#objective .objective-head-text {
+#project-overview .objective-head-text {
   display: flex;
   flex-direction: column;
   gap: 180px;
   min-width: 0;
 }
 
-#objective .objective-head-text h2 {
+#project-overview .objective-head-text h2 {
   margin: 0;
   max-width: min(800px, 100%);
 }
 
-#objective .objective-overview-media {
+/* Bottom-aligned to headline column; scale grows from bottom-right toward intrinsic size */
+#project-overview .objective-overview-media {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 20px;
+  justify-content: flex-end;
   justify-self: end;
+  align-self: end;
   min-width: 0;
   transform: scale(var(--overview-img-scale, 0.5));
-  transform-origin: right center;
+  transform-origin: right bottom;
   will-change: transform;
 }
 
-#objective .objective-overview-thumb {
+#project-overview .objective-overview-thumb {
   flex: 0 0 auto;
   width: auto;
   height: auto;
-  max-width: min(36vw, 260px);
+  max-width: 100%;
   display: block;
   pointer-events: none;
 }
 
-#objective .objective-overview-large {
-  flex: 0 0 auto;
-  width: auto;
-  height: auto;
-  max-width: min(38.4vw, 448px);
-  display: block;
-  pointer-events: none;
-}
-
-#objective::after {
+/* Disable generic section line pseudo on #project-overview — JS line-segment divs instead */
+#project-overview::after {
   display: none;
 }
 
+/* Vertical guides: above dot layer (z-index 0), below all section copy (z-index 2) */
 .line-segment {
   position: absolute;
   left: 0;
@@ -526,13 +606,30 @@ h2 {
   background-size: 1px 0, 1px 0;
 }
 
-#objective.is-visible .line-segment {
+#project-overview.is-visible .line-segment {
   animation: linesGrow 2s ease-in-out forwards;
 }
 
-#objective .eyebrow,
-#objective h2,
-#objective .body-dark {
+/* Guides: below dot overlay, above block bg; copy stacks above line layers */
+#project-overview > .eyebrow,
+#project-overview > .objective-head-main {
+  position: relative;
+  z-index: 2;
+}
+
+#project-overview .objective-head-main > .line-segment {
+  z-index: 1;
+}
+
+#project-overview .objective-head-text,
+#project-overview .objective-overview-media {
+  position: relative;
+  z-index: 2;
+}
+
+#project-overview .eyebrow,
+#project-overview h2,
+#project-overview .body-dark {
   opacity: 0;
   transform: translateY(28px);
   transition:
@@ -540,48 +637,47 @@ h2 {
     transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Overview images: visible at 50% size; scale 50%→100% driven by scroll (--overview-img-scale) */
-#objective .objective-overview-thumb,
-#objective .objective-overview-large {
+/* Overview image: visible at 50% size; scale 50%→100% driven by scroll (--overview-img-scale) */
+#project-overview .objective-overview-thumb {
   opacity: 1;
 }
 
-#objective.is-visible .eyebrow {
+#project-overview.is-visible .eyebrow {
   opacity: 1;
   transform: none;
   transition-delay: 100ms;
 }
 
-#objective.is-visible h2 {
+#project-overview.is-visible h2 {
   opacity: 1;
   transform: none;
   transition-delay: 400ms;
 }
 
-#objective.is-visible .body-dark {
+#project-overview.is-visible .body-dark {
   opacity: 1;
   transform: none;
   transition-delay: 700ms;
 }
 
-#objective .objective-body {
+#project-overview .objective-body {
   margin-top: 0;
   max-width: 364px;
 }
 
-#objective .rows {
+#project-overview .rows {
   border-top-color: var(--line-dark);
 }
 
-#objective .row {
+#project-overview .row {
   border-bottom-color: var(--line-dark);
 }
 
-#objective .row span {
+#project-overview .row span {
   color: #4d4d58;
 }
 
-#objective .row p {
+#project-overview .row p {
   color: #666673;
 }
 
@@ -608,13 +704,6 @@ h2 {
   color: var(--ink-dim);
 }
 
-.overview-grid {
-  display: grid;
-  grid-template-columns: 1.2fr 0.9fr;
-  gap: 36px;
-  align-items: start;
-}
-
 .eyebrow-dark {
   color: #4d4d58;
   font-size: 16px;
@@ -633,70 +722,448 @@ h2 {
   max-width: 560px;
 }
 
-.media-column {
-  display: grid;
-  gap: 14px;
-  transform: scale(var(--overview-img-scale, 0.5));
-  transform-origin: right center;
-  will-change: transform;
+#solution h2.solution-headline {
+  color: #ffffff;
+  max-width: none;
+  width: 100%;
+  margin-top: 0;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
 }
 
-.media-card {
-  border-radius: 12px;
-  background:
-    linear-gradient(140deg, rgba(104, 54, 188, 0.9), rgba(22, 15, 36, 0.9)),
-    linear-gradient(180deg, #9150ff, #4b2778);
+#solution .solution-headline-line {
+  display: block;
+  max-width: none;
+  white-space: nowrap;
 }
 
-.media-card.small {
-  height: 230px;
+@media (min-width: 901px) {
+  #solution h2.solution-headline {
+    font-size: clamp(48px, 6.5vw, 80px);
+  }
 }
 
-.media-card.large {
-  height: 360px;
+/* Grow with content; no fixed viewport slice / inner clip (matches tall #objective pattern). */
+#solution.section {
+  min-height: 100vh;
+  height: auto;
+  max-height: none;
+  overflow-x: visible;
+  overflow-y: visible;
+  justify-content: flex-start;
 }
 
-#overview .media-card {
-  opacity: 1;
+/*
+ * Full-bleed carousel: break out of .section horizontal padding (same values as
+ * .section). min-width:0 on the shell keeps it inside main’s width; the scroll
+ * container is .slider-shell__viewport.
+ */
+#solution .slider-shell {
+  --solution-pad-x: 140px;
+  --solution-slide-gap: 20px;
+  width: calc(100% + 2 * var(--solution-pad-x));
+  max-width: none;
+  min-width: 0;
+  margin-left: calc(-1 * var(--solution-pad-x));
+  margin-right: calc(-1 * var(--solution-pad-x));
+  box-sizing: border-box;
 }
 
+/* Carousel: viewport clips; equal-width slides set via --solution-slide-w from app.js */
 .slider-shell {
   margin-top: 26px;
-  display: grid;
-  grid-template-columns: 1fr 0.45fr;
-  gap: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 24px;
+  overflow: visible;
+}
+
+.slider-shell__viewport {
+  width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: visible;
+  scroll-behavior: smooth;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.slider-shell__viewport::-webkit-scrollbar {
+  display: none;
+  height: 0;
+}
+
+.slider-shell__track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: var(--solution-slide-gap);
+  width: max-content;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.solution-slide {
+  flex: 0 0 auto;
+  width: max-content;
+  min-width: 0;
+  max-width: none;
+  scroll-snap-align: start;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+#solution .slider-shell:not([data-solution-ready]) .solution-slide:last-child {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+#solution .slider-shell[data-solution-ready] .solution-slide {
+  flex: 0 0 var(--solution-slide-w);
+  width: var(--solution-slide-w);
+}
+
+#solution .slider-shell[data-solution-ready] .solution-slide:last-child {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+#solution .solution-slide > .slide-card {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+/* Nav strip matches first-slide width so arrows sit bottom-right of that card */
+.slider-shell__nav {
+  display: flex;
+  flex-direction: row;
+  justify-content: flex-end;
+  width: var(--solution-slide-w, max-content);
+  max-width: 100%;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+
+#solution .slider-shell[data-solution-ready] .slider-shell__nav {
+  width: var(--solution-slide-w);
 }
 
 .slide-card {
+  --slide-bg-glow: radial-gradient(circle at 26% 44%, rgba(116, 50, 241, 0.3), transparent 48%);
+  --slide-bg-base: linear-gradient(180deg, #0e0a18 0%, #1a1030 100%);
+  position: relative;
+  flex: 0 0 auto;
   border-radius: 10px;
   border: 1px solid var(--line-light);
-  height: 430px;
-  background:
-    radial-gradient(circle at 26% 44%, rgba(116, 50, 241, 0.3), transparent 48%),
-    linear-gradient(180deg, #0e0a18 0%, #1a1030 100%);
+  height: auto;
+  min-height: 0;
+  box-sizing: border-box;
+  overflow: visible;
+  background: var(--slide-bg-glow), var(--slide-bg-base);
 }
 
-.slide-card.ghost {
-  opacity: 0.55;
+.slide-card--split {
+  width: max-content;
+  max-width: none;
+  display: grid;
+  grid-template-columns: auto minmax(260px, min(42vw, 420px));
+  align-items: stretch;
+  align-content: stretch;
+  column-gap: clamp(16px, 3vw, 28px);
+  padding: 0;
 }
 
-.video-break {
-  min-height: 380px;
-  border-radius: 18px;
+/* Fixed-width slide column: card fills slide; grid may shrink image column */
+#solution .slide-card--split {
+  min-width: 0;
+  width: 100%;
+  max-width: none;
+  grid-template-columns: minmax(0, auto) minmax(260px, min(42vw, 420px));
+}
+
+#solution .slide-card--split .slide-card__media {
+  max-width: 100%;
+}
+
+.slide-card__visual {
+  height: auto;
+  width: max-content;
+  max-width: 100%;
+  min-width: 0;
+  overflow: visible;
+  display: block;
+  line-height: 0;
+}
+
+.slide-card--split .slide-card__media {
+  display: block;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  vertical-align: top;
+  width: auto;
+  height: auto;
+  max-width: none;
+  max-height: none;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.slide-card__copy {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0;
+  padding: clamp(18px, 2.5vw, 28px);
+  padding-left: 0;
+}
+
+.slide-card--split h3 {
+  color: #ffffff;
+}
+
+/* Don’t combine with global `.body` — that stacks margins / max-width and looks “doubled” */
+.slide-card__body {
+  margin: 0;
+  margin-top: 12px;
+  max-width: none;
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 1.1rem;
+  line-height: 1.6;
+}
+
+.slide-card__arrows {
   position: relative;
-  background:
-    linear-gradient(rgba(9, 9, 14, 0.5), rgba(9, 9, 14, 0.5)),
-    linear-gradient(145deg, #281047, #8d56f2);
+  flex-shrink: 0;
+  width: 53px;
+  height: 24px;
+  z-index: 3;
 }
 
-.video-dot {
+.slide-card__arrows-art {
+  display: block;
+  width: 53px;
+  height: 24px;
+  pointer-events: none;
+  user-select: none;
+}
+
+.slide-card__arrow-hit {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 50%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slide-card__arrow-hit--prev {
+  left: 0;
+}
+
+.slide-card__arrow-hit--next {
+  right: 0;
+}
+
+.slide-card__arrow-hit:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.55);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Second slide placeholder: same surface; size comes from .solution-slide (equal to first) */
+#solution .slide-card.ghost {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  background: var(--slide-bg-glow), var(--slide-bg-base);
+  opacity: 1;
+}
+
+/* Wrap video + objective so sticky #video-break is clipped after objective (not behind Solution+) */
+.video-objective-stack {
+  position: relative;
+  width: 100%;
+}
+
+/* Video Break: full-bleed viewport image (no inner scroll); sticky only within .video-objective-stack */
+#video-break.section.section-videobreak {
+  padding: 0;
+  overflow: hidden;
+  background: var(--black);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex-shrink: 0;
+}
+
+#video-break.section.section-videobreak::after {
+  display: none;
+}
+
+#video-break .videobreak-image {
   position: absolute;
   inset: 0;
-  margin: auto;
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
-  background: #fff;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  display: block;
+  margin: 0;
+}
+
+/* Next section(s) slide up over the sticky video frame */
+#objective.section-over-videobreak {
+  position: relative;
+  z-index: 2;
+}
+
+/* Objective (after video): black, subtle dot grid, slash labels + row list (see reference layout) */
+#objective.section.section-over-videobreak.section-objective-post-video.block-dark {
+  background-color: #000000;
+  background-image: radial-gradient(circle, rgba(255, 255, 255, 0.06) 1px, transparent 1px);
+  background-size: 16px 16px;
+  background-position: 0 0;
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* At least full viewport; grow with content — avoid clipping in a fixed 100vh + overflow-y:auto box */
+#objective.section.section-objective-post-video {
+  justify-content: flex-start;
+  padding-top: 200px;
+  padding-bottom: 40px;
+  min-height: 100vh;
+  height: auto;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+#objective.section.section-objective-post-video .objective-eyebrow {
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#objective .objective-content {
+  width: 100%;
+  max-width: 100%;
+}
+
+#objective.section.section-objective-post-video h2.objective-headline {
+  color: #ffffff;
+  max-width: none;
+  width: 100%;
+  margin-top: 0;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+/* Exactly two visual lines: each phrase stays on one line (no max-width clamp on the title). */
+#objective .objective-headline-line {
+  display: block;
+  max-width: none;
+  white-space: nowrap;
+}
+
+@media (min-width: 901px) {
+  #objective.section.section-objective-post-video h2.objective-headline {
+    font-size: clamp(48px, 6.5vw, 80px);
+  }
+}
+
+@media (max-width: 900px) {
+  #objective.section.section-objective-post-video h2.objective-headline {
+    font-size: clamp(1.25rem, 4.8vw, 2.75rem);
+  }
+}
+
+#objective .objective-rows {
+  margin-top: 48px;
+  width: 100%;
+  border-top: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#objective .objective-row {
+  display: grid;
+  grid-template-columns: minmax(100px, 38%) 1fr;
+  column-gap: clamp(24px, 4vw, 48px);
+  align-items: start;
+  padding: 22px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+#objective .objective-row:last-child {
+  border-bottom: none;
+}
+
+#objective .objective-row-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #ffffff;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+#objective .objective-row-text {
+  margin: 0;
+  font-size: 1rem;
+  line-height: 1.65;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.92);
+  max-width: none;
+}
+
+/* Staggered row reveal — class from JS (decoupled from section .is-visible / snap scroll) */
+#objective .objective-rows:not(.objective-rows--reveal) .objective-row {
+  opacity: 0;
+  transform: translate3d(0, clamp(2.75rem, 7vw, 4.25rem), 0);
+}
+
+#objective .objective-rows .objective-row {
+  transition:
+    opacity 0.95s cubic-bezier(0.18, 1, 0.35, 1),
+    transform 0.95s cubic-bezier(0.18, 1, 0.35, 1);
+}
+
+#objective .objective-rows.objective-rows--reveal .objective-row {
+  opacity: 1;
+  transform: translate3d(0, 0, 0);
+}
+
+#objective .objective-rows.objective-rows--reveal .objective-row:nth-child(1) {
+  transition-delay: 0.08s;
+}
+
+#objective .objective-rows.objective-rows--reveal .objective-row:nth-child(2) {
+  transition-delay: 0.28s;
+}
+
+#objective .objective-rows.objective-rows--reveal .objective-row:nth-child(3) {
+  transition-delay: 0.48s;
+}
+
+#objective .objective-rows.objective-rows--reveal .objective-row:nth-child(4) {
+  transition-delay: 0.68s;
 }
 
 .block-impact {
@@ -716,7 +1183,7 @@ h2 {
 /* Opacity only — translateY on full-viewport sections caused overlap with neighbors while scrolling */
 .fade-in {
   opacity: 0;
-  transition: opacity 900ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: opacity 1500ms cubic-bezier(0.22, 1, 0.36, 1);
   will-change: opacity;
 }
 
@@ -728,7 +1195,8 @@ main {
   height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  scroll-behavior: smooth;
+  scroll-behavior: auto;
+  overscroll-behavior: none;
   scrollbar-width: none;
   -ms-overflow-style: none;
   position: relative;
@@ -746,8 +1214,24 @@ main::-webkit-scrollbar {
     transition: none;
   }
 
-  #objective .objective-overview-media,
-  #overview .media-column {
+  #objective .objective-rows .objective-row,
+  #objective .objective-rows:not(.objective-rows--reveal) .objective-row {
+    opacity: 1;
+    transform: none;
+    transition: none;
+    transition-delay: 0s;
+  }
+
+  .brand-logo,
+  .hamburger-btn {
+    transition-duration: 0.01ms;
+  }
+
+  .site-header::after {
+    transition-duration: 0.01ms;
+  }
+
+  #project-overview .objective-overview-media {
     transform: none;
     will-change: auto;
   }
@@ -804,12 +1288,24 @@ main::-webkit-scrollbar {
     font-size: clamp(2.2rem, 11vw, 4rem);
   }
 
+  h3 {
+    font-size: clamp(1.375rem, 4.2vw, 32px);
+  }
+
+  #solution h2.solution-headline {
+    font-size: clamp(1.25rem, 4.8vw, 2.75rem);
+  }
+
   .section {
     min-height: 100vh;
     padding: 96px 24px 28px;
   }
 
-  #objective .objective-head-main {
+  #video-break.section.section-videobreak {
+    padding: 0;
+  }
+
+  #project-overview .objective-head-main {
     width: 100%;
     margin-left: 0;
     margin-right: 0;
@@ -819,24 +1315,87 @@ main::-webkit-scrollbar {
     row-gap: 20px;
   }
 
-  #objective .objective-overview-media {
+  #project-overview .objective-overview-media {
     align-items: flex-start;
     justify-self: start;
+    align-self: start;
     width: 100%;
   }
 
-  #objective .objective-overview-thumb {
-    max-width: min(85vw, 320px);
+  #project-overview .objective-overview-thumb {
+    max-width: min(92vw, 560px);
   }
 
-  #objective .objective-overview-large {
-    max-width: min(73.6vw, 448px);
-  }
-
-  .row,
-  .overview-grid,
-  .slider-shell {
+  .row {
     grid-template-columns: 1fr;
+  }
+
+  #solution .slider-shell {
+    --solution-pad-x: 24px;
+  }
+
+  #solution .slider-shell__viewport {
+    overflow-x: auto;
+    overflow-y: visible;
+  }
+
+  #solution .slider-shell__nav {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #solution .slider-shell[data-solution-ready] .slider-shell__nav {
+    width: 100%;
+    max-width: min(100%, var(--solution-slide-w, 100%));
+  }
+
+  .slide-card__arrows {
+    margin-top: 0;
+  }
+
+  #solution .slide-card--split {
+    grid-template-columns: 1fr;
+    row-gap: 0;
+    align-items: start;
+  }
+
+  .slide-card--split {
+    width: 100%;
+    max-width: 100%;
+    grid-template-columns: 1fr;
+    row-gap: 0;
+    align-items: start;
+  }
+
+  .slide-card__visual {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .slide-card--split .slide-card__media {
+    width: 100%;
+    height: auto;
+    max-height: none;
+    object-fit: contain;
+    object-position: left center;
+  }
+
+  #solution .slide-card.ghost {
+    min-width: 0;
+  }
+
+  .slide-card__copy {
+    padding: clamp(16px, 3vw, 24px);
+    padding-top: 16px;
+  }
+
+  #objective .objective-row {
+    grid-template-columns: 1fr;
+    row-gap: 10px;
+  }
+
+  #objective.section.section-objective-post-video {
+    padding-bottom: 28px;
   }
 
   .eyebrow {
