@@ -1,6 +1,35 @@
 const sectionsToReveal = document.querySelectorAll(".fade-in");
 const mainScrollContainer = document.querySelector("main");
 const sections = Array.from(document.querySelectorAll("main .section"));
+const projectOverviewSection = document.querySelector("#project-overview");
+
+/** Cumulative scroll offsets — sections can differ from one viewport height (e.g. tall #objective). */
+function getSectionScrollTops() {
+  const tops = [];
+  let acc = 0;
+  for (const section of sections) {
+    tops.push(acc);
+    acc += section.offsetHeight;
+  }
+  return tops;
+}
+
+function scrollTopForSectionIndex(index) {
+  const tops = getSectionScrollTops();
+  const i = Math.max(0, Math.min(index, tops.length - 1));
+  return tops[i] ?? 0;
+}
+
+function mainScrollTopToActiveSectionIndex(scrollTop) {
+  const tops = getSectionScrollTops();
+  for (let i = sections.length - 1; i >= 0; i--) {
+    if (scrollTop + 0.5 >= tops[i]) {
+      return i;
+    }
+  }
+  return 0;
+}
+const projectOverviewScaleTarget = projectOverviewSection?.querySelector(".objective-overview-media");
 const menuButton = document.querySelector(".hamburger-btn");
 const menuOverlay = document.querySelector(".menu-overlay");
 const menuOverlayLinks = document.querySelectorAll(".menu-links a");
@@ -9,57 +38,82 @@ let activeSectionIndex = 0;
 
 /**
  * Map scroll position → --overview-img-scale (0.5 → 1), linearly.
+ * #project-overview: thumb scales to intrinsic size (origin bottom-right, aligned with body copy).
  * Inner section scroll + main scroll fallback; see section scroll listeners on `sections`.
  */
 function updateOverviewImageScrollScale() {
-  if (!mainScrollContainer) return;
-  const mediaEls = document.querySelectorAll(
-    "#objective .objective-overview-media, #overview .media-column"
-  );
+  if (!mainScrollContainer || !projectOverviewSection || !projectOverviewScaleTarget) return;
   if (reducedMotion.matches) {
-    mediaEls.forEach((el) => el.style.removeProperty("--overview-img-scale"));
+    projectOverviewScaleTarget.style.removeProperty("--overview-img-scale");
     return;
   }
   const vh = mainScrollContainer.clientHeight;
   if (vh <= 0) return;
 
-  const pairs = [
-    ["#objective", "#objective .objective-overview-media"],
-    ["#overview", "#overview .media-column"],
-  ];
-
-  for (const [sectionSel, targetSel] of pairs) {
-    const section = document.querySelector(sectionSel);
-    const target = document.querySelector(targetSel);
-    if (!section || !target) continue;
-
-    const rect = section.getBoundingClientRect();
-    const maxInner = Math.max(0, section.scrollHeight - section.clientHeight);
-    let raw;
-    if (maxInner > 2) {
-      raw = Math.min(1, Math.max(0, section.scrollTop / maxInner));
-    } else {
-      raw = Math.min(1, Math.max(0, -rect.top / vh));
-    }
-    /* Linear: first pixel of scroll moves scale (no flat “dead” zone); change stays slow and even. */
-    const t = Math.min(1, Math.max(0, raw));
-    const scale = 0.5 + 0.5 * t;
-    target.style.setProperty("--overview-img-scale", scale.toFixed(4));
+  const rect = projectOverviewSection.getBoundingClientRect();
+  const maxInner = Math.max(0, projectOverviewSection.scrollHeight - projectOverviewSection.clientHeight);
+  let raw;
+  if (maxInner > 2) {
+    raw = Math.min(1, Math.max(0, projectOverviewSection.scrollTop / maxInner));
+  } else {
+    raw = Math.min(1, Math.max(0, -rect.top / vh));
   }
+  const t = Math.min(1, Math.max(0, raw));
+  const scale = 0.5 + 0.5 * t;
+  projectOverviewScaleTarget.style.setProperty("--overview-img-scale", scale.toFixed(4));
 }
 let isTransitioning = false;
 let isMenuOpen = false;
 let scrollTransitionGeneration = 0;
+let lastMainScrollTopForNav = 0;
 
-function endSectionTransition(scrollEl, generation, onDone) {
+/** If `scrollend` is missing, unlock after this (native smooth is usually under ~1s). */
+const SMOOTH_SCROLL_FALLBACK_MS = 900;
+
+/**
+ * Single `scrollTo({ behavior: "smooth" })` — browser handles interpolation (simplest / least janky).
+ */
+function scrollMainToIndex(targetIndex, generation, onArrived) {
+  if (!mainScrollContainer) {
+    onArrived?.();
+    return;
+  }
+  const h = mainScrollContainer.clientHeight;
+  if (h <= 0) {
+    onArrived?.();
+    return;
+  }
+  const targetTop = scrollTopForSectionIndex(targetIndex);
+  if (Math.abs(targetTop - mainScrollContainer.scrollTop) < 1) {
+    onArrived?.();
+    return;
+  }
+  if (reducedMotion.matches) {
+    mainScrollContainer.scrollTop = targetTop;
+    onArrived?.();
+    return;
+  }
+
   let finished = false;
-  const done = () => {
+  function done() {
     if (finished || generation !== scrollTransitionGeneration) return;
     finished = true;
-    onDone();
-  };
-  scrollEl.addEventListener("scrollend", done, { once: true });
-  window.setTimeout(done, reducedMotion.matches ? 80 : 900);
+    window.clearTimeout(fallbackId);
+    mainScrollContainer.scrollTop = targetTop;
+    onArrived?.();
+  }
+  function onScrollEnd() {
+    done();
+  }
+
+  mainScrollContainer.addEventListener("scrollend", onScrollEnd, { once: true });
+  const fallbackId = window.setTimeout(done, SMOOTH_SCROLL_FALLBACK_MS);
+
+  mainScrollContainer.scrollTo({
+    top: targetTop,
+    left: 0,
+    behavior: "smooth",
+  });
 }
 
 if (sectionsToReveal.length > 0) {
@@ -76,32 +130,35 @@ if (sectionsToReveal.length > 0) {
 }
 
 function setupObjectiveLines() {
-  const section = document.querySelector("#objective");
+  const section = projectOverviewSection;
+  const main = section && section.querySelector(".objective-head-main");
   const h2 = section && section.querySelector("h2");
-  if (!section || !h2) return;
+  if (!section || !main || !h2) return;
 
-  /* offsetTop is relative to offsetParent; h2 is inside .objective-head-main, so use section bounds */
   const s = section.getBoundingClientRect();
+  const m = main.getBoundingClientRect();
   const h = h2.getBoundingClientRect();
-  const h2Top = h.top - s.top;
-  const h2Bottom = h.bottom - s.top;
+  const h2TopFromSection = h.top - s.top;
+  const h2BottomFromMainTop = h.bottom - m.top;
 
+  /* Above the H2: pinned to the section (eyebrow → headline), scrolls with the slide */
   const topSeg = document.createElement("div");
-  topSeg.className = "line-segment";
+  topSeg.className = "line-segment line-segment--objective-top";
   topSeg.style.top = "0";
-  topSeg.style.height = `${Math.max(0, h2Top)}px`;
+  topSeg.style.height = `${Math.max(0, h2TopFromSection)}px`;
 
+  /* Below the H2: inside .objective-head-main so it scrolls with subtext + images */
   const bottomSeg = document.createElement("div");
-  bottomSeg.className = "line-segment";
-  bottomSeg.style.top = `${h2Bottom}px`;
+  bottomSeg.className = "line-segment line-segment--objective-bottom";
+  bottomSeg.style.top = `${h2BottomFromMainTop}px`;
   bottomSeg.style.bottom = "0";
 
   section.appendChild(topSeg);
-  section.appendChild(bottomSeg);
+  main.appendChild(bottomSeg);
 }
 
 function refreshObjectiveLines() {
-  document.querySelectorAll("#objective .line-segment").forEach((el) => el.remove());
+  document.querySelectorAll("#project-overview .line-segment").forEach((el) => el.remove());
   setupObjectiveLines();
 }
 
@@ -110,6 +167,14 @@ window.addEventListener("resize", refreshObjectiveLines);
 window.addEventListener("load", refreshObjectiveLines);
 if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(refreshObjectiveLines);
+}
+
+if (projectOverviewSection) {
+  projectOverviewSection.addEventListener(
+    "scroll",
+    () => window.requestAnimationFrame(refreshObjectiveLines),
+    { passive: true }
+  );
 }
 
 const revealObserver = new IntersectionObserver(
@@ -126,6 +191,29 @@ const revealObserver = new IntersectionObserver(
 
 sectionsToReveal.forEach((section) => revealObserver.observe(section));
 
+/* Objective rows: own reveal — section .is-visible fights snap scroll + 35% IO threshold */
+const objectiveRowsEl = document.querySelector("#objective .objective-rows");
+if (objectiveRowsEl && mainScrollContainer) {
+  if (reducedMotion.matches) {
+    objectiveRowsEl.classList.add("objective-rows--reveal");
+  } else {
+    const objectiveRowsObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("objective-rows--reveal");
+          objectiveRowsObserver.unobserve(entry.target);
+        });
+      },
+      {
+        root: mainScrollContainer,
+        threshold: 0.15,
+      }
+    );
+    objectiveRowsObserver.observe(objectiveRowsEl);
+  }
+}
+
 const navLinks = document.querySelectorAll('a[href^="#"]');
 
 function syncNavThemeToSectionIndex(index) {
@@ -136,10 +224,39 @@ function syncNavThemeToSectionIndex(index) {
 
 function updateNavThemeFromScroll() {
   if (!mainScrollContainer || sections.length === 0) return;
-  const h = mainScrollContainer.clientHeight;
-  if (h <= 0) return;
-  const idx = Math.min(sections.length - 1, Math.max(0, Math.round(mainScrollContainer.scrollTop / h)));
+  if (isTransitioning) {
+    syncNavThemeToSectionIndex(activeSectionIndex);
+    return;
+  }
+  if (mainScrollContainer.clientHeight <= 0) return;
+  const idx = mainScrollTopToActiveSectionIndex(mainScrollContainer.scrollTop);
   document.body.classList.toggle("nav-on-light", sections[idx].classList.contains("block-light"));
+}
+
+function updateNavScrollChrome() {
+  if (!mainScrollContainer || sections.length === 0) return;
+  if (isMenuOpen) {
+    document.body.classList.remove("nav-scroll-down", "nav-scroll-up-bar");
+    return;
+  }
+  /* Programmatic slide scroll: do not run (and do not advance lastMainScrollTopForNav) — avoids body-class churn every frame and a bogus ~0 delta at the end. */
+  if (isTransitioning) return;
+  const st = mainScrollContainer.scrollTop;
+  if (st <= 2) {
+    document.body.classList.remove("nav-scroll-down", "nav-scroll-up-bar");
+    lastMainScrollTopForNav = st;
+    return;
+  }
+  const delta = st - lastMainScrollTopForNav;
+  lastMainScrollTopForNav = st;
+  if (Math.abs(delta) < 1.5) return;
+  if (delta > 0) {
+    document.body.classList.add("nav-scroll-down");
+    document.body.classList.remove("nav-scroll-up-bar");
+  } else {
+    document.body.classList.remove("nav-scroll-down");
+    document.body.classList.add("nav-scroll-up-bar");
+  }
 }
 
 function jumpToSection(index) {
@@ -149,22 +266,26 @@ function jumpToSection(index) {
   const boundedIndex = Math.max(0, Math.min(sections.length - 1, index));
   activeSectionIndex = boundedIndex;
   syncNavThemeToSectionIndex(boundedIndex);
+  if (mainScrollContainer) {
+    lastMainScrollTopForNav = mainScrollContainer.scrollTop;
+  }
   isTransitioning = true;
   const generation = ++scrollTransitionGeneration;
-  const useSmooth = !reducedMotion.matches;
-  mainScrollContainer.scrollTo({
-    top: boundedIndex * mainScrollContainer.clientHeight,
-    behavior: useSmooth ? "smooth" : "auto",
-  });
   const targetSection = sections[boundedIndex];
   targetSection.classList.remove("is-visible");
-  window.requestAnimationFrame(() => {
-    window.requestAnimationFrame(() => {
-      targetSection.classList.add("is-visible");
-    });
-  });
-  endSectionTransition(mainScrollContainer, generation, () => {
+  void targetSection.offsetHeight;
+  targetSection.classList.add("is-visible");
+  scrollMainToIndex(boundedIndex, generation, () => {
+    if (generation !== scrollTransitionGeneration) return;
     isTransitioning = false;
+    updateNavThemeFromScroll();
+    /* Do not set lastMainScrollTopForNav here — updateNavScrollChrome needs a real delta from the pre-arrival value. */
+    updateNavScrollChrome();
+    updateOverviewImageScrollScale();
+    const rows = targetSection.querySelector(".objective-rows");
+    if (rows && !rows.classList.contains("objective-rows--reveal")) {
+      rows.classList.add("objective-rows--reveal");
+    }
   });
 }
 
@@ -177,24 +298,42 @@ function setMenuState(open) {
   if (menuOverlay) {
     menuOverlay.setAttribute("aria-hidden", open ? "false" : "true");
   }
+  if (open) {
+    document.body.classList.remove("nav-scroll-down", "nav-scroll-up-bar");
+  } else if (mainScrollContainer) {
+    updateNavScrollChrome();
+  }
+}
+
+function getSectionScrollMetrics(section) {
+  return {
+    scrollTop: section.scrollTop,
+    scrollHeight: section.scrollHeight,
+    clientHeight: section.clientHeight,
+  };
+}
+
+let mainScrollEffectsRaf = null;
+function scheduleMainScrollEffects() {
+  if (mainScrollEffectsRaf !== null) return;
+  mainScrollEffectsRaf = requestAnimationFrame(() => {
+    mainScrollEffectsRaf = null;
+    if (mainScrollContainer && sections.length > 0 && !isTransitioning) {
+      activeSectionIndex = mainScrollTopToActiveSectionIndex(mainScrollContainer.scrollTop);
+    }
+    updateNavThemeFromScroll();
+    if (!isTransitioning) {
+      updateNavScrollChrome();
+      updateOverviewImageScrollScale();
+    }
+  });
 }
 
 if (mainScrollContainer && sections.length > 0) {
-  mainScrollContainer.addEventListener(
-    "scroll",
-    () => {
-      updateNavThemeFromScroll();
-      window.requestAnimationFrame(updateOverviewImageScrollScale);
-    },
-    { passive: true }
-  );
+  mainScrollContainer.addEventListener("scroll", scheduleMainScrollEffects, { passive: true });
 
   sections.forEach((section) => {
-    section.addEventListener(
-      "scroll",
-      () => window.requestAnimationFrame(updateOverviewImageScrollScale),
-      { passive: true }
-    );
+    section.addEventListener("scroll", scheduleMainScrollEffects, { passive: true });
   });
 
   mainScrollContainer.addEventListener(
@@ -208,16 +347,63 @@ if (mainScrollContainer && sections.length > 0) {
         return;
       }
       const direction = event.deltaY > 0 ? 1 : -1;
-      const currentSection = sections[activeSectionIndex];
-      if (currentSection) {
-        const atBottom = currentSection.scrollTop >= currentSection.scrollHeight - currentSection.clientHeight - 1;
-        const atTop = currentSection.scrollTop <= 0;
-        if (direction > 0 && !atBottom) return;
-        if (direction < 0 && !atTop) return;
+      const st = mainScrollContainer.scrollTop;
+      const vh = mainScrollContainer.clientHeight;
+      const tops = getSectionScrollTops();
+      const i = mainScrollTopToActiveSectionIndex(st);
+      activeSectionIndex = i;
+      const currentSection = sections[i];
+
+      /* Video break: full-viewport image (no inner scroll); any scroll advances to adjacent slide. */
+      if (currentSection && currentSection.id === "video-break") {
+        event.preventDefault();
+        if (isTransitioning) return;
+        jumpToSection(i + direction);
+        return;
       }
+
+      /* Sections with inner scroll (fixed 100vh slides with overflowing content) */
+      if (currentSection) {
+        const m = getSectionScrollMetrics(currentSection);
+        const hasInnerScroll = m.scrollHeight > m.clientHeight + 2;
+        if (hasInnerScroll) {
+          const atBottom = m.scrollTop >= m.scrollHeight - m.clientHeight - 1;
+          const atTop = m.scrollTop <= 0;
+          if (direction > 0 && !atBottom) return;
+          if (direction < 0 && !atTop) return;
+        }
+      }
+
+      /* Tall sections (e.g. #objective): scroll main through the section before changing slide */
+      const secTop = tops[i];
+      const secH = currentSection ? currentSection.offsetHeight : vh;
+      const maxStInSection = secTop + Math.max(0, secH - vh);
+
+      if (direction > 0) {
+        if (st < maxStInSection - 2) {
+          event.preventDefault();
+          if (isTransitioning) return;
+          const delta = Math.min(vh * 0.92, maxStInSection - st);
+          mainScrollContainer.scrollBy({
+            top: delta,
+            behavior: reducedMotion.matches ? "auto" : "smooth",
+          });
+          return;
+        }
+      } else if (st > secTop + 2) {
+        event.preventDefault();
+        if (isTransitioning) return;
+        const delta = Math.min(vh * 0.92, st - secTop);
+        mainScrollContainer.scrollBy({
+          top: -delta,
+          behavior: reducedMotion.matches ? "auto" : "smooth",
+        });
+        return;
+      }
+
       event.preventDefault();
       if (isTransitioning) return;
-      jumpToSection(activeSectionIndex + direction);
+      jumpToSection(i + direction);
     },
     { passive: false }
   );
@@ -243,12 +429,19 @@ if (mainScrollContainer && sections.length > 0) {
   });
 
   updateNavThemeFromScroll();
+  updateNavScrollChrome();
   updateOverviewImageScrollScale();
 }
 
-window.addEventListener("resize", updateOverviewImageScrollScale);
+window.addEventListener("resize", () => {
+  if (mainScrollContainer) {
+    lastMainScrollTopForNav = mainScrollContainer.scrollTop;
+  }
+  updateOverviewImageScrollScale();
+});
 reducedMotion.addEventListener("change", updateOverviewImageScrollScale);
 updateOverviewImageScrollScale();
+updateNavScrollChrome();
 
 if (menuButton) {
   menuButton.addEventListener("click", () => {
@@ -308,3 +501,77 @@ document.querySelectorAll(".block-light").forEach((section) => {
     { passive: true }
   );
 });
+
+/* Solution carousel: equal-width slides, peek of slide 2 past viewport edge */
+const solutionSliderViewport = document.querySelector("#solutionSliderViewport");
+const solutionSliderShell = document.querySelector("#solution .slider-shell");
+const solutionArrowPrev = document.querySelector("#solution .slide-card__arrow-hit--prev");
+const solutionArrowNext = document.querySelector("#solution .slide-card__arrow-hit--next");
+const solutionFirstCard = document.querySelector("#solution .slide-card--split");
+
+function solutionSlideStepPx() {
+  if (!solutionSliderShell || !solutionSliderViewport) return 0;
+  const gapRaw = getComputedStyle(solutionSliderShell).getPropertyValue("--solution-slide-gap").trim();
+  const gap = Number.parseFloat(gapRaw) || 20;
+  const slide = solutionSliderViewport.querySelector(".solution-slide");
+  if (!slide || slide.offsetWidth < 1) return 0;
+  return slide.offsetWidth + gap;
+}
+
+function solutionSliderScrollByDirection(direction) {
+  if (!solutionSliderViewport) return;
+  const step = solutionSlideStepPx();
+  if (step < 1) return;
+  solutionSliderViewport.scrollBy({
+    left: direction * step,
+    behavior: reducedMotion.matches ? "auto" : "smooth",
+  });
+}
+
+if (solutionArrowPrev) {
+  solutionArrowPrev.addEventListener("click", () => solutionSliderScrollByDirection(-1));
+}
+if (solutionArrowNext) {
+  solutionArrowNext.addEventListener("click", () => solutionSliderScrollByDirection(1));
+}
+
+function applySolutionCarouselDimensions() {
+  if (!solutionSliderShell || !solutionFirstCard) return;
+  solutionSliderShell.removeAttribute("data-solution-ready");
+  void solutionSliderShell.offsetWidth;
+
+  const w = Math.round(solutionFirstCard.getBoundingClientRect().width);
+  const h = Math.round(solutionFirstCard.getBoundingClientRect().height);
+  if (w < 2 || h < 2) return;
+
+  solutionSliderShell.style.setProperty("--solution-slide-w", `${w}px`);
+  solutionSliderShell.style.setProperty("--solution-slide-h", `${h}px`);
+  solutionSliderShell.setAttribute("data-solution-ready", "true");
+}
+
+function scheduleSolutionCarouselLayout() {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(applySolutionCarouselDimensions);
+  });
+}
+
+if (solutionSliderShell && solutionFirstCard) {
+  let solutionResizeDebounce;
+  window.addEventListener(
+    "resize",
+    () => {
+      clearTimeout(solutionResizeDebounce);
+      solutionResizeDebounce = setTimeout(scheduleSolutionCarouselLayout, 150);
+    },
+    { passive: true }
+  );
+  window.addEventListener("load", scheduleSolutionCarouselLayout);
+  const solutionCardImg = solutionFirstCard.querySelector(".slide-card__media");
+  if (solutionCardImg && !solutionCardImg.complete) {
+    solutionCardImg.addEventListener("load", scheduleSolutionCarouselLayout, { once: true });
+  }
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(scheduleSolutionCarouselLayout);
+  }
+  scheduleSolutionCarouselLayout();
+}
