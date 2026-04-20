@@ -10,7 +10,7 @@
       href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=footer-lede-br" />
   </head>
   <body>
     <div class="ambient"></div>
@@ -31,16 +31,56 @@
       </div>
     </header>
     <div id="menuOverlay" class="menu-overlay" aria-hidden="true">
-      <div class="menu-top">
-        <img class="menu-logo" src="Assets/RPRobot.svg" alt="RP Robot logo" />
-        <div class="menu-links">
-          <a href="#">Work</a>
-          <a href="#">Services</a>
-          <a href="#">About</a>
-          <a href="#">Careers</a>
-          <a href="#">Insights</a>
-          <a href="#">Contact</a>
-        </div>
+      <div class="menu-overlay__lines" aria-hidden="true">
+        <span class="menu-overlay__line menu-overlay__line--top"></span>
+        <span class="menu-overlay__line menu-overlay__line--bottom"></span>
+      </div>
+      <div class="menu-overlay__content">
+        <nav class="menu-overlay__nav" aria-label="Primary navigation">
+          <ul>
+            <li><a class="menu-overlay__nav-link" href="#">Work</a></li>
+            <li><a class="menu-overlay__nav-link" href="#">Services</a></li>
+            <li><a class="menu-overlay__nav-link" href="#">About</a></li>
+            <li><a class="menu-overlay__nav-link" href="#">Careers</a></li>
+            <li><a class="menu-overlay__nav-link" href="#">Insights</a></li>
+            <li><a class="menu-overlay__nav-link" href="#">Contact</a></li>
+          </ul>
+        </nav>
+        <article class="menu-overlay__insight">
+          <p class="menu-overlay__eyebrow">/ Latest insight</p>
+          <figure class="menu-overlay__figure">
+            <img
+              src="Assets/menuinsight.png"
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+          </figure>
+          <h2 class="menu-overlay__insight-title">Should design students fear AI?</h2>
+          <p class="menu-overlay__insight-body">
+            Over the past several months I have been spending a lot of time building relationships with art and design
+            colleges across North America and Latin America.
+          </p>
+          <a class="menu-overlay__insight-cta" href="#" aria-label="Read full insight">
+            <!-- Lucide “arrow-right” (https://lucide.dev/icons/arrow-right) -->
+            <svg
+              class="menu-overlay__cta-icon"
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              aria-hidden="true"
+            >
+              <path d="M5 12h14" />
+              <path d="m12 5 7 7-7 7" />
+            </svg>
+          </a>
+        </article>
       </div>
     </div>
 
@@ -204,8 +244,53 @@
       <section id="impact" class="section block block-dark block-impact fade-in">
         <p class="eyebrow">/ Impact</p>
         <h2>Lorem ipsum dolor sit amet, consectetur adipiscing elit.</h2>
-        <div class="impact-media"></div>
+        <div class="impact-media">
+          <img
+            src="Assets/ComputerResultspurple.jpg"
+            alt=""
+            width="1440"
+            height="1024"
+            decoding="async"
+          />
+        </div>
       </section>
+
+      <footer id="page-footer" class="page-footer page-footer--reveal">
+        <div class="page-footer__intro">
+          <h3 class="page-footer__title">Global team. Local mindset.</h3>
+          <p class="page-footer__lede">
+            We work across continents, and partner like locals.<br />
+            We&apos;re just a zoom away.
+          </p>
+        </div>
+        <div class="page-footer__grow" aria-hidden="true"></div>
+        <ul class="page-footer__cities" role="list" aria-label="Office locations">
+          <li>Cleveland</li>
+          <li>Bellevue</li>
+          <li>Bogotá</li>
+          <li>Calgary</li>
+          <li>Lviv</li>
+          <li>Pittsburgh</li>
+          <li>Toronto</li>
+        </ul>
+        <div class="page-footer__bottom">
+          <div class="page-footer__logo">
+            <img
+              src="Assets/rplogofooter_large.svg"
+              alt="Robots &amp; Pencils"
+              width="1360"
+              height="164"
+              decoding="async"
+            />
+          </div>
+          <div class="page-footer__legal">
+            <p>
+              © 2008 - 2026 Robots &amp; Pencils. All rights reserved.
+              <a href="#">View Privacy Policy</a>.
+            </p>
+          </div>
+        </div>
+      </footer>
     </main>
 
     <script src="app.js"></script>

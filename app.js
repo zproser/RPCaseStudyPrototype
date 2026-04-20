@@ -2,6 +2,7 @@ const sectionsToReveal = document.querySelectorAll(".fade-in");
 const mainScrollContainer = document.querySelector("main");
 const sections = Array.from(document.querySelectorAll("main .section"));
 const projectOverviewSection = document.querySelector("#project-overview");
+const pageFooterEl = document.querySelector("#page-footer");
 
 /** Cumulative scroll offsets — sections can differ from one viewport height (e.g. tall #objective). */
 function getSectionScrollTops() {
@@ -29,10 +30,20 @@ function mainScrollTopToActiveSectionIndex(scrollTop) {
   }
   return 0;
 }
+
+/** Keep scroll position clamped to the end of `main` (footer zone). */
+function pinMainScrollBottom() {
+  if (!mainScrollContainer) return;
+  const max = mainScrollContainer.scrollHeight - mainScrollContainer.clientHeight;
+  if (max <= 0) return;
+  if (mainScrollContainer.scrollTop > max - 0.25) {
+    mainScrollContainer.scrollTop = max;
+  }
+}
 const projectOverviewScaleTarget = projectOverviewSection?.querySelector(".objective-overview-media");
 const menuButton = document.querySelector(".hamburger-btn");
 const menuOverlay = document.querySelector(".menu-overlay");
-const menuOverlayLinks = document.querySelectorAll(".menu-links a");
+const menuOverlayLinks = document.querySelectorAll("#menuOverlay a[href]");
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let activeSectionIndex = 0;
 
@@ -62,6 +73,7 @@ function updateOverviewImageScrollScale() {
   const scale = 0.5 + 0.5 * t;
   projectOverviewScaleTarget.style.setProperty("--overview-img-scale", scale.toFixed(4));
 }
+
 let isTransitioning = false;
 let isMenuOpen = false;
 let scrollTransitionGeneration = 0;
@@ -162,17 +174,65 @@ function refreshObjectiveLines() {
   setupObjectiveLines();
 }
 
+const metricsSection = document.querySelector("#metrics");
+
+/** Same vertical guides as #project-overview: two lines (50% / 75%), linesGrow (top→down + bottom→up). */
+function setupMetricsLines() {
+  const section = metricsSection;
+  const inner = section?.querySelector(".metrics-inner");
+  const cards = section?.querySelector(".metrics-cards");
+  if (!section || !inner || !cards) return;
+
+  const s = section.getBoundingClientRect();
+  const c = cards.getBoundingClientRect();
+  const cardsBottomFromSectionTop = c.bottom - s.top;
+
+  const topSeg = document.createElement("div");
+  topSeg.className = "line-segment line-segment--metrics-top";
+  topSeg.style.top = "0";
+  topSeg.style.height = `${Math.max(0, cardsBottomFromSectionTop)}px`;
+
+  const i = inner.getBoundingClientRect();
+  const cardsBottomFromInnerTop = c.bottom - i.top;
+
+  const bottomSeg = document.createElement("div");
+  bottomSeg.className = "line-segment line-segment--metrics-bottom";
+  bottomSeg.style.top = `${Math.max(0, cardsBottomFromInnerTop)}px`;
+  bottomSeg.style.bottom = "0";
+
+  section.appendChild(topSeg);
+  inner.appendChild(bottomSeg);
+}
+
+function refreshMetricsLines() {
+  document.querySelectorAll("#metrics .line-segment").forEach((el) => el.remove());
+  setupMetricsLines();
+}
+
+function refreshSectionGuideLines() {
+  refreshObjectiveLines();
+  refreshMetricsLines();
+}
+
 setupObjectiveLines();
-window.addEventListener("resize", refreshObjectiveLines);
-window.addEventListener("load", refreshObjectiveLines);
+setupMetricsLines();
+window.addEventListener("load", refreshSectionGuideLines);
 if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(refreshObjectiveLines);
+  document.fonts.ready.then(refreshSectionGuideLines);
 }
 
 if (projectOverviewSection) {
   projectOverviewSection.addEventListener(
     "scroll",
     () => window.requestAnimationFrame(refreshObjectiveLines),
+    { passive: true }
+  );
+}
+
+if (metricsSection) {
+  metricsSection.addEventListener(
+    "scroll",
+    () => window.requestAnimationFrame(refreshMetricsLines),
     { passive: true }
   );
 }
@@ -211,6 +271,40 @@ if (objectiveRowsEl && mainScrollContainer) {
       }
     );
     objectiveRowsObserver.observe(objectiveRowsEl);
+  }
+}
+
+/** Hide fixed header while `main` scroll is in the footer; show again when scrolled back to #impact or above. */
+function updateNavFooterHidden() {
+  if (!mainScrollContainer || !pageFooterEl) {
+    document.body.classList.remove("footer-nav-hidden");
+    return;
+  }
+  const st = mainScrollContainer.scrollTop;
+  const footerStart = pageFooterEl.offsetTop;
+  const inFooter = st >= footerStart - 1;
+  document.body.classList.toggle("footer-nav-hidden", inFooter);
+}
+
+/* Footer: one-shot reveal — keeps .is-visible after first intersect (no clip reset on scroll up) */
+if (pageFooterEl && mainScrollContainer) {
+  if (reducedMotion.matches) {
+    pageFooterEl.classList.add("is-visible");
+  } else {
+    const footerRevealObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return;
+          entry.target.classList.add("is-visible");
+          footerRevealObserver.unobserve(entry.target);
+        });
+      },
+      {
+        root: mainScrollContainer,
+        threshold: 0,
+      }
+    );
+    footerRevealObserver.observe(pageFooterEl);
   }
 }
 
@@ -281,6 +375,7 @@ function jumpToSection(index) {
     updateNavThemeFromScroll();
     /* Do not set lastMainScrollTopForNav here — updateNavScrollChrome needs a real delta from the pre-arrival value. */
     updateNavScrollChrome();
+    updateNavFooterHidden();
     updateOverviewImageScrollScale();
     const rows = targetSection.querySelector(".objective-rows");
     if (rows && !rows.classList.contains("objective-rows--reveal")) {
@@ -302,6 +397,7 @@ function setMenuState(open) {
     document.body.classList.remove("nav-scroll-down", "nav-scroll-up-bar");
   } else if (mainScrollContainer) {
     updateNavScrollChrome();
+    updateNavFooterHidden();
   }
 }
 
@@ -322,6 +418,7 @@ function scheduleMainScrollEffects() {
       activeSectionIndex = mainScrollTopToActiveSectionIndex(mainScrollContainer.scrollTop);
     }
     updateNavThemeFromScroll();
+    updateNavFooterHidden();
     if (!isTransitioning) {
       updateNavScrollChrome();
       updateOverviewImageScrollScale();
@@ -329,11 +426,16 @@ function scheduleMainScrollEffects() {
   });
 }
 
+function onMainScroll() {
+  pinMainScrollBottom();
+  scheduleMainScrollEffects();
+}
+
 if (mainScrollContainer && sections.length > 0) {
-  mainScrollContainer.addEventListener("scroll", scheduleMainScrollEffects, { passive: true });
+  mainScrollContainer.addEventListener("scroll", onMainScroll, { passive: true });
 
   sections.forEach((section) => {
-    section.addEventListener("scroll", scheduleMainScrollEffects, { passive: true });
+    section.addEventListener("scroll", onMainScroll, { passive: true });
   });
 
   mainScrollContainer.addEventListener(
@@ -343,16 +445,17 @@ if (mainScrollContainer && sections.length > 0) {
         event.preventDefault();
         return;
       }
-      if (Math.abs(event.deltaY) < 8) {
-        return;
-      }
-      const direction = event.deltaY > 0 ? 1 : -1;
       const st = mainScrollContainer.scrollTop;
       const vh = mainScrollContainer.clientHeight;
       const tops = getSectionScrollTops();
       const i = mainScrollTopToActiveSectionIndex(st);
       activeSectionIndex = i;
       const currentSection = sections[i];
+
+      if (Math.abs(event.deltaY) < 8) {
+        return;
+      }
+      const direction = event.deltaY > 0 ? 1 : -1;
 
       /* Video break: full-viewport image (no inner scroll); any scroll advances to adjacent slide. */
       if (currentSection && currentSection.id === "video-break") {
@@ -374,6 +477,18 @@ if (mainScrollContainer && sections.length > 0) {
         }
       }
 
+      /* Last slide (#metrics) + footer: one continuous document scroll — no synthetic scroll steps. */
+      if (i === sections.length - 1) {
+        const secTop = tops[i];
+        if (direction < 0 && st <= secTop + 2) {
+          event.preventDefault();
+          if (isTransitioning) return;
+          jumpToSection(i - 1);
+          return;
+        }
+        return;
+      }
+
       /* Tall sections (e.g. #objective): scroll main through the section before changing slide */
       const secTop = tops[i];
       const secH = currentSection ? currentSection.offsetHeight : vh;
@@ -384,6 +499,7 @@ if (mainScrollContainer && sections.length > 0) {
           event.preventDefault();
           if (isTransitioning) return;
           const delta = Math.min(vh * 0.92, maxStInSection - st);
+          if (delta < 0.5) return;
           mainScrollContainer.scrollBy({
             top: delta,
             behavior: reducedMotion.matches ? "auto" : "smooth",
@@ -394,6 +510,7 @@ if (mainScrollContainer && sections.length > 0) {
         event.preventDefault();
         if (isTransitioning) return;
         const delta = Math.min(vh * 0.92, st - secTop);
+        if (delta < 0.5) return;
         mainScrollContainer.scrollBy({
           top: -delta,
           behavior: reducedMotion.matches ? "auto" : "smooth",
@@ -430,6 +547,7 @@ if (mainScrollContainer && sections.length > 0) {
 
   updateNavThemeFromScroll();
   updateNavScrollChrome();
+  updateNavFooterHidden();
   updateOverviewImageScrollScale();
 }
 
@@ -437,11 +555,16 @@ window.addEventListener("resize", () => {
   if (mainScrollContainer) {
     lastMainScrollTopForNav = mainScrollContainer.scrollTop;
   }
+  refreshSectionGuideLines();
+  updateOverviewImageScrollScale();
+  updateNavFooterHidden();
+});
+reducedMotion.addEventListener("change", () => {
   updateOverviewImageScrollScale();
 });
-reducedMotion.addEventListener("change", updateOverviewImageScrollScale);
 updateOverviewImageScrollScale();
 updateNavScrollChrome();
+updateNavFooterHidden();
 
 if (menuButton) {
   menuButton.addEventListener("click", () => {
@@ -470,7 +593,7 @@ navLinks.forEach((link) => {
   });
 });
 
-document.querySelectorAll(".block-light").forEach((section) => {
+document.querySelectorAll(".block-light, #menuOverlay").forEach((section) => {
   function setDotSpotlight(clientX, clientY) {
     const rect = section.getBoundingClientRect();
     const xPct = ((clientX - rect.left) / Math.max(rect.width, 1)) * 100;
@@ -503,11 +626,65 @@ document.querySelectorAll(".block-light").forEach((section) => {
 });
 
 /* Solution carousel: equal-width slides, peek of slide 2 past viewport edge */
+const solutionSectionEl = document.querySelector("#solution");
 const solutionSliderViewport = document.querySelector("#solutionSliderViewport");
 const solutionSliderShell = document.querySelector("#solution .slider-shell");
 const solutionArrowPrev = document.querySelector("#solution .slide-card__arrow-hit--prev");
 const solutionArrowNext = document.querySelector("#solution .slide-card__arrow-hit--next");
 const solutionFirstCard = document.querySelector("#solution .slide-card--split");
+
+let solutionPeekDismissed = false;
+let solutionSlideActiveRaf = 0;
+
+function updateSolutionActiveSlide() {
+  if (!solutionSliderViewport) return;
+  const slides = solutionSliderViewport.querySelectorAll(".solution-slide");
+  if (!slides.length) return;
+  const sl = solutionSliderViewport.scrollLeft;
+  let best = 0;
+  let bestDist = Infinity;
+  slides.forEach((slide, i) => {
+    const d = Math.abs(sl - slide.offsetLeft);
+    if (d < bestDist) {
+      bestDist = d;
+      best = i;
+    }
+  });
+  slides.forEach((slide, i) => {
+    const active = i === best;
+    slide.classList.toggle("solution-slide--active", active);
+    slide.setAttribute("aria-hidden", active ? "false" : "true");
+  });
+}
+
+function scheduleSolutionActiveSlideUpdate() {
+  cancelAnimationFrame(solutionSlideActiveRaf);
+  solutionSlideActiveRaf = requestAnimationFrame(() => {
+    updateSolutionActiveSlide();
+  });
+}
+
+function dismissSolutionPeekHint() {
+  if (!solutionSliderViewport?.classList.contains("solution-viewport--peek-hint")) return;
+  solutionSliderViewport.classList.remove("solution-viewport--peek-hint");
+  solutionPeekDismissed = true;
+}
+
+function tryStartSolutionPeekHint() {
+  if (
+    solutionPeekDismissed ||
+    reducedMotion.matches ||
+    !solutionSliderViewport ||
+    !solutionSliderShell?.hasAttribute("data-solution-ready") ||
+    !solutionSectionEl?.classList.contains("is-visible")
+  ) {
+    return;
+  }
+  if (solutionSliderViewport.scrollLeft > 6) return;
+  if (solutionSliderViewport.classList.contains("solution-viewport--peek-hint")) return;
+  solutionSliderViewport.classList.add("solution-viewport--peek-hint");
+  window.setTimeout(() => dismissSolutionPeekHint(), 5200);
+}
 
 function solutionSlideStepPx() {
   if (!solutionSliderShell || !solutionSliderViewport) return 0;
@@ -529,10 +706,16 @@ function solutionSliderScrollByDirection(direction) {
 }
 
 if (solutionArrowPrev) {
-  solutionArrowPrev.addEventListener("click", () => solutionSliderScrollByDirection(-1));
+  solutionArrowPrev.addEventListener("click", () => {
+    dismissSolutionPeekHint();
+    solutionSliderScrollByDirection(-1);
+  });
 }
 if (solutionArrowNext) {
-  solutionArrowNext.addEventListener("click", () => solutionSliderScrollByDirection(1));
+  solutionArrowNext.addEventListener("click", () => {
+    dismissSolutionPeekHint();
+    solutionSliderScrollByDirection(1);
+  });
 }
 
 function applySolutionCarouselDimensions() {
@@ -547,6 +730,8 @@ function applySolutionCarouselDimensions() {
   solutionSliderShell.style.setProperty("--solution-slide-w", `${w}px`);
   solutionSliderShell.style.setProperty("--solution-slide-h", `${h}px`);
   solutionSliderShell.setAttribute("data-solution-ready", "true");
+  scheduleSolutionActiveSlideUpdate();
+  tryStartSolutionPeekHint();
 }
 
 function scheduleSolutionCarouselLayout() {
@@ -574,4 +759,27 @@ if (solutionSliderShell && solutionFirstCard) {
     document.fonts.ready.then(scheduleSolutionCarouselLayout);
   }
   scheduleSolutionCarouselLayout();
+}
+
+if (solutionSliderViewport) {
+  solutionSliderViewport.addEventListener(
+    "scroll",
+    () => {
+      dismissSolutionPeekHint();
+      scheduleSolutionActiveSlideUpdate();
+    },
+    { passive: true }
+  );
+}
+
+if (solutionSectionEl && mainScrollContainer) {
+  const solutionPeekObserver = new IntersectionObserver(
+    (entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting) tryStartSolutionPeekHint();
+      });
+    },
+    { root: mainScrollContainer, threshold: 0.35 }
+  );
+  solutionPeekObserver.observe(solutionSectionEl);
 }
