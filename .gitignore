@@ -1,1 +1,4 @@
 .DS_Store
+
+# Large Photoshop sources — not stored in Git (use local copies or LFS if needed)
+PSDS/*.psd
