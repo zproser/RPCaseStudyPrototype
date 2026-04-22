@@ -40,7 +40,6 @@ function pinMainScrollBottom() {
     mainScrollContainer.scrollTop = max;
   }
 }
-const projectOverviewScaleTarget = projectOverviewSection?.querySelector(".objective-overview-media");
 const menuButton = document.querySelector(".hamburger-btn");
 const menuOverlay = document.querySelector(".menu-overlay");
 const menuOverlayLinks = document.querySelectorAll("#menuOverlay a[href]");
@@ -48,30 +47,50 @@ const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
 let activeSectionIndex = 0;
 
 /**
- * Map scroll position → --overview-img-scale (0.5 → 1), linearly.
- * #project-overview: thumb scales to intrinsic size (origin bottom-right, aligned with body copy).
- * Inner section scroll + main scroll fallback; see section scroll listeners on `sections`.
+ * Overview image: in `.overview-bg` (absolute). Size animates via `--overview-scroll` 0→1:
+ * `transform: scale(0.3 + 0.7 * t)` with `transform-origin: right bottom`, slot `bottom: 24px`.
  */
 function updateOverviewImageScrollScale() {
-  if (!mainScrollContainer || !projectOverviewSection || !projectOverviewScaleTarget) return;
+  if (!mainScrollContainer || !projectOverviewSection) return;
+  const bg = projectOverviewSection.querySelector(".overview-bg");
+  if (!bg) return;
   if (reducedMotion.matches) {
-    projectOverviewScaleTarget.style.removeProperty("--overview-img-scale");
+    bg.style.setProperty("--overview-scroll", "1");
     return;
   }
-  const vh = mainScrollContainer.clientHeight;
-  if (vh <= 0) return;
 
-  const rect = projectOverviewSection.getBoundingClientRect();
-  const maxInner = Math.max(0, projectOverviewSection.scrollHeight - projectOverviewSection.clientHeight);
-  let raw;
-  if (maxInner > 2) {
-    raw = Math.min(1, Math.max(0, projectOverviewSection.scrollTop / maxInner));
-  } else {
-    raw = Math.min(1, Math.max(0, -rect.top / vh));
+  const tops = getSectionScrollTops();
+  const idx = sections.indexOf(projectOverviewSection);
+  const secTop = idx >= 0 ? tops[idx] ?? 0 : 0;
+  const secH = Math.max(1, projectOverviewSection.offsetHeight);
+  const st = mainScrollContainer.scrollTop;
+  const vh = mainScrollContainer.clientHeight;
+  const span = Math.max(140, vh * 0.26);
+  let raw = Math.min(1, Math.max(0, (st - secTop) / span));
+
+  const room = Math.max(0, secH - vh * 0.35);
+  if (room > 0 && st - secTop >= room) {
+    raw = 1;
   }
+
+  const maxInner = Math.max(0, projectOverviewSection.scrollHeight - projectOverviewSection.clientHeight);
+  if (maxInner > 2) {
+    const rawInner = Math.min(1, Math.max(0, projectOverviewSection.scrollTop / maxInner));
+    raw = Math.max(raw, rawInner);
+  }
+
   const t = Math.min(1, Math.max(0, raw));
-  const scale = 0.5 + 0.5 * t;
-  projectOverviewScaleTarget.style.setProperty("--overview-img-scale", scale.toFixed(4));
+  bg.style.setProperty("--overview-scroll", t.toFixed(4));
+}
+
+const overviewThumbEl = projectOverviewSection?.querySelector(".objective-overview-thumb");
+if (overviewThumbEl) {
+  if (!overviewThumbEl.complete) {
+    overviewThumbEl.addEventListener("load", () => updateOverviewImageScrollScale(), { once: true });
+  }
+  if (overviewThumbEl.decode) {
+    overviewThumbEl.decode().then(() => updateOverviewImageScrollScale()).catch(() => {});
+  }
 }
 
 let isTransitioning = false;
@@ -139,102 +158,6 @@ if (sectionsToReveal.length > 0) {
   } else {
     first.classList.add("is-visible");
   }
-}
-
-function setupObjectiveLines() {
-  const section = projectOverviewSection;
-  const main = section && section.querySelector(".objective-head-main");
-  const h2 = section && section.querySelector("h2");
-  if (!section || !main || !h2) return;
-
-  const s = section.getBoundingClientRect();
-  const m = main.getBoundingClientRect();
-  const h = h2.getBoundingClientRect();
-  const h2TopFromSection = h.top - s.top;
-  const h2BottomFromMainTop = h.bottom - m.top;
-
-  /* Above the H2: pinned to the section (eyebrow → headline), scrolls with the slide */
-  const topSeg = document.createElement("div");
-  topSeg.className = "line-segment line-segment--objective-top";
-  topSeg.style.top = "0";
-  topSeg.style.height = `${Math.max(0, h2TopFromSection)}px`;
-
-  /* Below the H2: inside .objective-head-main so it scrolls with subtext + images */
-  const bottomSeg = document.createElement("div");
-  bottomSeg.className = "line-segment line-segment--objective-bottom";
-  bottomSeg.style.top = `${h2BottomFromMainTop}px`;
-  bottomSeg.style.bottom = "0";
-
-  section.appendChild(topSeg);
-  main.appendChild(bottomSeg);
-}
-
-function refreshObjectiveLines() {
-  document.querySelectorAll("#project-overview .line-segment").forEach((el) => el.remove());
-  setupObjectiveLines();
-}
-
-const metricsSection = document.querySelector("#metrics");
-
-/** Same vertical guides as #project-overview: two lines (50% / 75%), linesGrow (top→down + bottom→up). */
-function setupMetricsLines() {
-  const section = metricsSection;
-  const inner = section?.querySelector(".metrics-inner");
-  const cards = section?.querySelector(".metrics-cards");
-  if (!section || !inner || !cards) return;
-
-  const s = section.getBoundingClientRect();
-  const c = cards.getBoundingClientRect();
-  const cardsBottomFromSectionTop = c.bottom - s.top;
-
-  const topSeg = document.createElement("div");
-  topSeg.className = "line-segment line-segment--metrics-top";
-  topSeg.style.top = "0";
-  topSeg.style.height = `${Math.max(0, cardsBottomFromSectionTop)}px`;
-
-  const i = inner.getBoundingClientRect();
-  const cardsBottomFromInnerTop = c.bottom - i.top;
-
-  const bottomSeg = document.createElement("div");
-  bottomSeg.className = "line-segment line-segment--metrics-bottom";
-  bottomSeg.style.top = `${Math.max(0, cardsBottomFromInnerTop)}px`;
-  bottomSeg.style.bottom = "0";
-
-  section.appendChild(topSeg);
-  inner.appendChild(bottomSeg);
-}
-
-function refreshMetricsLines() {
-  document.querySelectorAll("#metrics .line-segment").forEach((el) => el.remove());
-  setupMetricsLines();
-}
-
-function refreshSectionGuideLines() {
-  refreshObjectiveLines();
-  refreshMetricsLines();
-}
-
-setupObjectiveLines();
-setupMetricsLines();
-window.addEventListener("load", refreshSectionGuideLines);
-if (document.fonts && document.fonts.ready) {
-  document.fonts.ready.then(refreshSectionGuideLines);
-}
-
-if (projectOverviewSection) {
-  projectOverviewSection.addEventListener(
-    "scroll",
-    () => window.requestAnimationFrame(refreshObjectiveLines),
-    { passive: true }
-  );
-}
-
-if (metricsSection) {
-  metricsSection.addEventListener(
-    "scroll",
-    () => window.requestAnimationFrame(refreshMetricsLines),
-    { passive: true }
-  );
 }
 
 const revealObserver = new IntersectionObserver(
@@ -419,9 +342,10 @@ function scheduleMainScrollEffects() {
     }
     updateNavThemeFromScroll();
     updateNavFooterHidden();
+    /* Overview scale must track main scroll during jumpToSection smooth scroll (isTransitioning). */
+    updateOverviewImageScrollScale();
     if (!isTransitioning) {
       updateNavScrollChrome();
-      updateOverviewImageScrollScale();
     }
   });
 }
@@ -555,7 +479,6 @@ window.addEventListener("resize", () => {
   if (mainScrollContainer) {
     lastMainScrollTopForNav = mainScrollContainer.scrollTop;
   }
-  refreshSectionGuideLines();
   updateOverviewImageScrollScale();
   updateNavFooterHidden();
 });

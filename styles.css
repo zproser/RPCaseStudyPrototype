@@ -474,7 +474,8 @@ body.menu-open .menu-overlay {
 }
 
 /* .hero-copy is position:absolute — do not force relative here or top/bottom won't bind to the hero */
-.section > *:not(.line-segment):not(.hero-copy) {
+/* .overview-bg is position:absolute — must not get relative here or bottom anchoring breaks */
+.section > *:not(.hero-copy):not(.overview-bg) {
   position: relative;
   z-index: 2;
 }
@@ -492,22 +493,24 @@ body.menu-open .menu-overlay {
     linear-gradient(#000000, #000000),
     linear-gradient(#000000, #000000);
   background-repeat: no-repeat;
-  /* Line 1: top → down; line 2: bottom → up (same end state, different anchor) */
-  background-position: 50% 0, 75% 100%;
+  /* Line 1 (scroll): top → down at 120px from right; line 2 (fixed): bottom → up at 60px from right — 60px between lines */
+  background-position: calc(100% - 120px) 0, calc(100% - 60px) 100%;
   background-size: 1px 0, 1px 0;
+  background-attachment: scroll, fixed;
 }
 
 .section.is-visible::after {
-  animation: linesGrow 2s ease-in-out forwards;
+  animation: linesGrowSectionGuides 2s ease-in-out forwards;
 }
 
 .hero::after {
   display: none;
 }
 
-@keyframes linesGrow {
+/* .section::after: first line fills section height; second layer is viewport-fixed and grows to 100vh from the bottom */
+@keyframes linesGrowSectionGuides {
   to {
-    background-size: 1px 100%, 1px 100%;
+    background-size: 1px 100%, 1px 100vh;
   }
 }
 
@@ -516,7 +519,7 @@ body.menu-open .menu-overlay {
   position: relative;
   display: block;
   padding: 0;
-  background-image: url("References/HeroImage.png");
+  background-image: url("Assets/Header_withSecuritas.jpg");
   background-size: cover;
   background-position: center center;
   background-repeat: no-repeat;
@@ -727,16 +730,74 @@ h3 {
   mask-repeat: no-repeat;
 }
 
+/*
+ * overflow-y: visible so `main` is the scrollport — required for position:sticky to track the viewport bottom.
+ */
 #project-overview {
+  position: relative;
   justify-content: flex-start;
   padding-top: 140px;
+  overflow-x: visible;
+  overflow-y: visible;
+  min-height: 100vh;
+}
+
+/*
+ * Sticky bottom: stays 24px above main’s visible bottom while this section scrolls through.
+ * Last flex child + margin-top:auto = sits at section bottom when not sticking.
+ */
+#project-overview .overview-bg {
+  --overview-scroll: 0;
+  position: sticky;
+  bottom: 24px;
+  z-index: 1;
+  pointer-events: none;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-end;
+  align-self: stretch;
+  padding: 0 140px 0 0;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 100%;
+  min-height: 0;
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+/* 30% → 100% of intrinsic size via scale; origin bottom-right = visual lock to strip bottom */
+#project-overview .overview-bg .objective-overview-thumb {
+  display: block;
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  max-width: min(46vw, 720px);
+  max-height: min(78vh, 820px);
+  object-fit: contain;
+  object-position: right bottom;
+  flex-shrink: 0;
+  transform: scale(calc(0.3 + 0.7 * var(--overview-scroll, 0)));
+  transform-origin: right bottom;
+  will-change: transform;
+}
+
+/* Vertical guides — line 2 viewport-fixed so it stays bottom-anchored while scrolling (same pattern as .section::after) */
+#project-overview::after {
+  z-index: 0;
+  background-position: calc(100% - 398px) 0, calc(100% - 60px) 100%;
+  background-size: 1px 0, 1px 0;
+  background-attachment: scroll, fixed;
+}
+
+#project-overview.is-visible::after {
+  animation: linesGrowSectionGuides 2s ease-in-out forwards;
 }
 
 #project-overview h2 {
   color: #111114;
 }
 
-/* Full-bleed row: cancel section horizontal padding, then pad right 140px from viewport edge */
+/* Full-bleed row; single text column — image lives in .overview-bg, not in grid */
 #project-overview .objective-head-main {
   --objective-gutter: 140px;
   width: calc(100% + 2 * var(--objective-gutter));
@@ -746,8 +807,7 @@ h3 {
   padding-right: 140px;
   box-sizing: border-box;
   display: grid;
-  grid-template-columns: minmax(0, min(800px, 100%)) 1fr;
-  column-gap: min(4vw, 40px);
+  grid-template-columns: minmax(0, min(800px, 100%));
   align-items: start;
   overflow: visible;
 }
@@ -765,66 +825,14 @@ h3 {
   max-width: min(800px, 100%);
 }
 
-/* Bottom-aligned to headline column; scale grows from bottom-right toward intrinsic size */
-#project-overview .objective-overview-media {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  justify-content: flex-end;
-  justify-self: end;
-  align-self: end;
-  min-width: 0;
-  transform: scale(var(--overview-img-scale, 0.5));
-  transform-origin: right bottom;
-  will-change: transform;
-}
-
-#project-overview .objective-overview-thumb {
-  flex: 0 0 auto;
-  width: auto;
-  height: auto;
-  max-width: 100%;
-  display: block;
-  pointer-events: none;
-}
-
-/* Disable generic section line pseudo on #project-overview — JS line-segment divs instead */
-#project-overview::after {
-  display: none;
-}
-
-/* Vertical guides: above dot layer (z-index 0), below all section copy (z-index 2) */
-.line-segment {
-  position: absolute;
-  left: 0;
-  width: 100%;
-  pointer-events: none;
-  z-index: 1;
-  background-image:
-    linear-gradient(#000000, #000000),
-    linear-gradient(#000000, #000000);
-  background-repeat: no-repeat;
-  background-position: 50% 0, 75% 100%;
-  background-size: 1px 0, 1px 0;
-}
-
-#project-overview.is-visible .line-segment {
-  animation: linesGrow 2s ease-in-out forwards;
-}
-
-/* Guides: below dot overlay, above block bg; copy stacks above line layers */
+/* Copy above background art + guide lines */
 #project-overview > .eyebrow,
 #project-overview > .objective-head-main {
   position: relative;
   z-index: 2;
 }
 
-#project-overview .objective-head-main > .line-segment {
-  z-index: 1;
-}
-
-#project-overview .objective-head-text,
-#project-overview .objective-overview-media {
+#project-overview .objective-head-text {
   position: relative;
   z-index: 2;
 }
@@ -837,11 +845,6 @@ h3 {
   transition:
     opacity 1400ms cubic-bezier(0.22, 1, 0.36, 1),
     transform 1400ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-/* Overview image: visible at 50% size; scale 50%→100% driven by scroll (--overview-img-scale) */
-#project-overview .objective-overview-thumb {
-  opacity: 1;
 }
 
 #project-overview.is-visible .eyebrow {
@@ -926,24 +929,17 @@ h3 {
 
 #solution h2.solution-headline {
   color: #ffffff;
-  max-width: none;
+  max-width: 100%;
   width: 100%;
   margin-top: 0;
   font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-#solution .solution-headline-line {
   display: block;
-  max-width: none;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 /* Solution: staggered intro (like #project-overview) + split-card assemble + carousel states */
 #solution .eyebrow,
-#solution .solution-headline-line,
+#solution h2.solution-headline,
 #solution > p.body,
 #solution .slider-shell__nav {
   opacity: 0;
@@ -988,16 +984,10 @@ h3 {
   transition-delay: 90ms;
 }
 
-#solution.is-visible .solution-headline-line:nth-of-type(1) {
+#solution.is-visible h2.solution-headline {
   opacity: 1;
   transform: none;
-  transition-delay: 220ms;
-}
-
-#solution.is-visible .solution-headline-line:nth-of-type(2) {
-  opacity: 1;
-  transform: none;
-  transition-delay: 360ms;
+  transition-delay: 280ms;
 }
 
 #solution.is-visible > p.body {
@@ -1399,20 +1389,12 @@ h3 {
 
 #objective.section.section-objective-post-video h2.objective-headline {
   color: #ffffff;
-  max-width: none;
+  max-width: 100%;
   width: 100%;
   margin-top: 0;
   font-weight: 600;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-}
-
-/* Exactly two visual lines: each phrase stays on one line (no max-width clamp on the title). */
-#objective .objective-headline-line {
   display: block;
-  max-width: none;
-  white-space: nowrap;
+  overflow-wrap: break-word;
 }
 
 #objective .objective-rows {
@@ -1588,19 +1570,6 @@ h3 {
   padding-bottom: 80px;
 }
 
-#metrics::after {
-  display: none;
-}
-
-/* Vertical guides: same as #project-overview — JS `.line-segment` + `linesGrow` when .is-visible */
-#metrics.is-visible .line-segment {
-  animation: linesGrow 2s ease-in-out forwards;
-}
-
-#metrics .metrics-inner > .line-segment {
-  z-index: 1;
-}
-
 #metrics .metrics-cards,
 #metrics .metrics-quote {
   position: relative;
@@ -1700,7 +1669,7 @@ h3 {
   margin: 52px 0 0;
   padding: 0;
   border: none;
-  max-width: min(920px, 100%);
+  max-width: min(1020px, 100%);
 }
 
 /* Same H2 size as global `h1, h2` (80px ≥901px; clamp on small viewports) — no local font-size */
@@ -1964,7 +1933,7 @@ main::-webkit-scrollbar {
   }
 
   #solution .eyebrow,
-  #solution .solution-headline-line,
+  #solution h2.solution-headline,
   #solution > p.body,
   #solution .slider-shell__viewport,
   #solution .slider-shell__nav,
@@ -1993,9 +1962,8 @@ main::-webkit-scrollbar {
     transition-duration: 0.01ms;
   }
 
-  #project-overview .objective-overview-media {
-    transform: none;
-    will-change: auto;
+  #project-overview .overview-bg {
+    --overview-scroll: 1;
   }
 
   #impact.section {
@@ -2142,15 +2110,13 @@ main::-webkit-scrollbar {
     row-gap: 20px;
   }
 
-  #project-overview .objective-overview-media {
-    align-items: flex-start;
-    justify-self: start;
-    align-self: start;
-    width: 100%;
+  #project-overview .overview-bg {
+    padding: 0 24px;
   }
 
-  #project-overview .objective-overview-thumb {
-    max-width: min(92vw, 560px);
+  #project-overview .overview-bg .objective-overview-thumb {
+    max-width: min(88vw, 100%);
+    max-height: 50vh;
   }
 
   .row {
